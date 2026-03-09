@@ -20,16 +20,16 @@
 </head>
 <body>
 
-    <h1>🏆 Tipovačka</h1>
+    <h1>Tipovačka</h1>
     <button onclick="window.adminLogin()">⚙️ Admin sekce</button>
 
     <div id="matches">Načítám...</div>
 
-    <h2>📊 Tabulka</h2>
+    <h2>Tabulka</h2>
     <div style="overflow-x:auto;"><table id="playersTable"></table></div>
 
     <div class="admin" id="adminPanel">
-        <h2>🛠️ Admin Panel</h2>
+        <h2>Admin Panel</h2>
         <button onclick="document.getElementById('adminPanel').style.display='none'" style="background:#475569">Zavřít</button>
         <button onclick="window.addMatch()" style="background:#059669">+ Přidat zápas</button>
         <button onclick="window.recalcPoints()" style="background:#8b5cf6">🔄 Přepočítat body</button>
@@ -62,7 +62,6 @@
     let matches = [], tips = {}, points = {}, pId = localStorage.getItem("pId") || "p"+Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
-    // EXPORT FUNKCÍ DO OKNA (aby je vidělo HTML)
     window.adminLogin = () => {
         let p = prompt("Heslo:");
         if (p === ADMIN_HESLO) document.getElementById("adminPanel").style.display = "block";
@@ -130,7 +129,7 @@
                     <h2>${m.home} — ${m.away}</h2>
                     <p>Výsledek: <b>${m.result || "-:-"}</b></p>
                     <button onclick="window.sendTip(${i})" ${m.closed ? 'disabled' : ''}>
-                        ${m.closed ? '🔒 Uzavřeno' : (tips[pId]?.tips?.[i] ? '📝 Upravit tip' : '🏒 Tipovat')}
+                        ${m.closed ? 'Uzavřeno' : (tips[pId]?.tips?.[i] ? 'Upravit tip' : 'Tipovat')}
                     </button>
                 </div>`;
         });
@@ -153,7 +152,7 @@
                     <input oninput="window.updateTeam(${i},'away',this.value)" value="${m.away}" style="width:80px">
                     <button onclick="window.setRes(${i})" style="background:#10b981">Výsledek</button>
                     <button onclick="window.toggleMatch(${i}, ${!m.closed})" style="background:#6366f1">
-                        ${m.closed ? '🔓 Otevřít' : '🔒 Zavřít'}
+                        ${m.closed ? 'Otevřít' : 'Zavřít'}
                     </button>
                     <button onclick="window.delMatch(${i})" class="danger">🗑️</button>
                 </div>`;
