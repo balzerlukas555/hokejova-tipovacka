@@ -107,7 +107,7 @@
     let matches = [], tips = {}, points = {}, pId = localStorage.getItem("pId") || "p"+Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
-    // EXPORT FUNKCÍ PRO HTML TLAČÍTKA
+    // EXPORT FUNKCÍ PRO HTML (OPRAVA ReferenceError)
     window.changeName = () => {
         let oldName = localStorage.getItem("pName") || "";
         let n = prompt("Zadej nové jméno:", oldName);
@@ -125,13 +125,6 @@
         }
     };
 
-    window.deletePlayer = (playerId, playerName) => {
-        if(confirm(`Opravdu smazat hráče ${playerName}?`)) {
-            remove(ref(db, `tips/${playerId}`));
-            remove(ref(db, `points/${playerId}`));
-        }
-    };
-
     window.addMatch = () => {
         const i = matches.length;
         set(ref(db, `matches/${i}`), {home:"Domácí", away:"Hosté", date:"", desc:"", closed:false, result:"-"});
@@ -139,33 +132,25 @@
 
     window.updateMatchData = (i, field, val) => update(ref(db, `matches/${i}`), {[field]: val});
     window.toggleMatch = (i, state) => update(ref(db, `matches/${i}`), {closed: state});
-    
     window.setRes = (i) => {
         let r = prompt("Výsledek (např. 3:1):");
         if(r) { update(ref(db, `matches/${i}`), {result: r, closed: true}); window.recalcPoints(); }
     };
-
     window.delMatch = (i) => { if(confirm("Smazat zápas?")) remove(ref(db, `matches/${i}`)); };
-    window.clearAllTips = () => { if(confirm("Smazat VŠECHNY tipy?")) remove(ref(db, "tips")); };
+    window.deletePlayer = (id, name) => { if(confirm(`Smazat hráče ${name}?`)) remove(ref(db, `tips/${id}`)); };
+    window.clearAllTips = () => { if(confirm("Smazat VŠE?")) remove(ref(db, "tips")); };
     window.clearAllPoints = () => { if(confirm("Vynulovat body?")) remove(ref(db, "points")); };
 
     window.sendTip = (i) => {
         let n = localStorage.getItem("pName");
-        if(!n) {
-            n = prompt("Tvoje jméno:");
-            if(!n) return;
-            localStorage.setItem("pName", n);
-        }
-        let t = prompt("Tvůj tip (např. 2:1):", tips[pId]?.tips?.[i] || "");
-        if(t && t.includes(":")) {
-            set(ref(db, `tips/${pId}/name`), n);
-            set(ref(db, `tips/${pId}/tips/${i}`), t);
-        }
+        if(!n) { n = prompt("Jméno:"); if(!n) return; localStorage.setItem("pName", n); }
+        let t = prompt("Tip (např. 2:1):", tips[pId]?.tips?.[i] || "");
+        if(t && t.includes(":")) { set(ref(db, `tips/${pId}/name`), n); set(ref(db, `tips/${pId}/tips/${i}`), t); }
     };
 
     window.recalcPoints = () => {
         let p = {};
-        for (let id in tips) {
+        Object.keys(tips).forEach(id => {
             let total = 0;
             matches.forEach((m, i) => {
                 if(m?.result && m.result !== "-" && tips[id].tips?.[i]) {
@@ -176,18 +161,19 @@
                 }
             });
             p[id] = total;
-        }
+        });
         set(ref(db, "points"), p);
     };
 
     onValue(ref(db, "/"), snap => {
         const d = snap.val() || {};
-        matches = d.matches || [];
+        // OPRAVA: Převedení objektu na pole, pokud Firebase nevrátí čisté pole
+        matches = d.matches ? (Array.isArray(d.matches) ? d.matches : Object.values(d.matches)) : [];
         tips = d.tips || {};
         points = d.points || {};
         
         const div = document.getElementById("matches");
-        div.innerHTML = "";
+        div.innerHTML = matches.length ? "" : "Žádné zápasy.";
         matches.forEach((m, i) => {
             if(!m) return;
             div.innerHTML += `
@@ -216,10 +202,7 @@
         sortedIds.forEach(id => {
             head += `<tr><td data-label="Hráč"><b>${tips[id].name || "Anonym"}</b></td><td data-label="Body" class="winner-cell">${points[id]||0}</td>`;
             matches.forEach((m, i) => {
-                if(m) {
-                    let playerTip = (tips[id].tips && tips[id].tips[i]) ? tips[id].tips[i] : "-";
-                    head += `<td data-label="Z${i+1} (${m.home.substring(0,3)})">${playerTip}</td>`;
-                }
+                if(m) head += `<td data-label="Z${i+1}">${(tips[id].tips && tips[id].tips[i]) ? tips[id].tips[i] : "-"}</td>`;
             });
             head += "</tr>";
         });
@@ -228,11 +211,7 @@
         const pAdmin = document.getElementById("adminPlayers");
         pAdmin.innerHTML = "";
         sortedIds.forEach(id => {
-            pAdmin.innerHTML += `
-                <div class="player-manage-item">
-                    <span><b>${tips[id].name || "Anonym"}</b> (${points[id]||0} b)</span>
-                    <button onclick="window.deletePlayer('${id}', '${tips[id].name || "Anonym"}')" class="danger" style="padding: 5px 10px; font-size: 12px;">Smazat</button>
-                </div>`;
+            pAdmin.innerHTML += `<div class="player-manage-item"><span><b>${tips[id].name || "Anonym"}</b></span><button onclick="window.deletePlayer('${id}', '${tips[id].name}')" class="danger">Smazat</button></div>`;
         });
 
         const ad = document.getElementById("adminMatches");
@@ -241,13 +220,10 @@
             if(!m) return;
             ad.innerHTML += `
                 <div class="admin-item">
-                    <input class="input-wide" type="text" placeholder="Popis (Play-off...)" onchange="window.updateMatchData(${i},'desc',this.value)" value="${m.desc || ''}">
-                    <input class="input-wide" type="text" placeholder="Datum (15.3. 18:00)" onchange="window.updateMatchData(${i},'date',this.value)" value="${m.date || ''}">
-                    <div style="display:flex; gap:5px;">
-                        <input oninput="window.updateMatchData(${i},'home',this.value)" value="${m.home}">
-                        <input oninput="window.updateMatchData(${i},'away',this.value)" value="${m.away}">
-                    </div>
-                    <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:5px;">
+                    <input class="input-wide" placeholder="Popis" onchange="window.updateMatchData(${i},'desc',this.value)" value="${m.desc || ''}">
+                    <input class="input-wide" placeholder="Datum" onchange="window.updateMatchData(${i},'date',this.value)" value="${m.date || ''}">
+                    <div style="display:flex; gap:5px;"><input oninput="window.updateMatchData(${i},'home',this.value)" value="${m.home}"><input oninput="window.updateMatchData(${i},'away',this.value)" value="${m.away}"></div>
+                    <div style="display:flex; gap:5px; margin-top:5px;">
                         <button onclick="window.setRes(${i})" style="background:#10b981">Výsledek</button>
                         <button onclick="window.toggleMatch(${i}, ${!m.closed})" style="background:#6366f1">${m.closed ? 'Otevřít' : 'Zavřít'}</button>
                         <button onclick="window.delMatch(${i})" class="danger">Smazat</button>
