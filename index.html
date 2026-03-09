@@ -13,7 +13,6 @@
 
         #matches {display: flex; flex-direction: column; align-items: center; gap: 15px;}
         .match{background:#1e293b;padding:20px;border-radius:12px;width:100%;max-width:450px;border: 1px solid #334155; box-sizing: border-box;}
-        .match h2 {margin: 0 0 10px 0; font-size: 20px;}
         
         button{padding:12px 18px;border:none;border-radius:8px;background:#3b82f6;color:white;cursor:pointer;font-weight:bold;font-size:14px; transition:0.2s; touch-action: manipulation;}
         button:active{transform: scale(0.96);}
@@ -23,6 +22,8 @@
 
         .admin{background:#111827;padding:15px;display:none;border-radius:12px;max-width:600px;margin:30px auto;border:2px dashed #ef4444; box-sizing: border-box;}
         .admin-item{background:#1e293b; margin-bottom:12px; padding:15px; border-radius:8px; border:1px solid #444; display:flex; flex-direction: column; gap: 10px; align-items: center;}
+        .player-manage-item { background: #1e293b; padding: 10px; margin: 5px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 20px; border: 1px solid #334155;}
+        
         input{padding:12px;border-radius:8px;background:#0f172a;color:white;border:1px solid #475569; font-size: 16px; width: 100px;}
 
         .tableWrap { width: 100%; max-width: 1000px; margin: 20px auto; }
@@ -34,6 +35,7 @@
             td { display: flex; justify-content: space-between; padding: 8px 5px; border: none; border-bottom: 1px solid #2d3748; text-align: right; }
             td:last-child { border-bottom: none; }
             td::before { content: attr(data-label); font-weight: bold; text-align: left; color: #94a3b8; }
+            .player-manage-item { flex-direction: column; text-align: center; }
         }
 
         @media (min-width: 601px) {
@@ -64,11 +66,18 @@
         <button onclick="document.getElementById('adminPanel').style.display='none'" style="background:#475569">Zavřít</button>
         <button onclick="window.addMatch()" style="background:#059669">Přidat zápas</button>
         <button onclick="window.recalcPoints()" style="background:#8b5cf6">Přepočítat body</button>
-        <div style="margin-top:10px;">
-            <button onclick="window.clearAllTips()" class="danger">Smazat všechny tipy</button>
-            <button onclick="window.clearAllPoints()" class="danger">Vynulovat body</button>
+        
+        <div style="margin-top:20px;">
+            <button onclick="window.clearAllTips()" class="danger">Smazat VŠE (Tipy)</button>
+            <button onclick="window.clearAllPoints()" class="danger">Vynulovat VŠE (Body)</button>
         </div>
+
         <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+        <h3>Správa hráčů</h3>
+        <div id="adminPlayers"></div>
+
+        <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+        <h3>Správa zápasů</h3>
         <div id="adminMatches"></div>
     </div>
 
@@ -93,7 +102,6 @@
     let matches = [], tips = {}, points = {}, pId = localStorage.getItem("pId") || "p"+Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
-    // FUNKCE PRO ZMĚNU JMÉNA
     window.changeName = () => {
         let oldName = localStorage.getItem("pName") || "";
         let n = prompt("Zadej nové jméno:", oldName);
@@ -111,6 +119,14 @@
         }
     };
 
+    // MAZÁNÍ KONKRÉTNÍHO HRÁČE
+    window.deletePlayer = (playerId, playerName) => {
+        if(confirm(`Opravdu chceš smazat hráče ${playerName}? Smažou se jeho body i všechny tipy.`)) {
+            remove(ref(db, `tips/${playerId}`));
+            remove(ref(db, `points/${playerId}`));
+        }
+    };
+
     window.addMatch = () => {
         const i = matches.length;
         set(ref(db, `matches/${i}`), {home:"Domácí", away:"Hosté", closed:false, result:"-"});
@@ -118,14 +134,13 @@
 
     window.updateTeam = (i, side, val) => set(ref(db, `matches/${i}/${side}`), val);
     window.toggleMatch = (i, state) => set(ref(db, `matches/${i}/closed`), state);
-    
     window.setRes = (i) => {
         let r = prompt("Výsledek (např. 3:1):");
         if(r) { update(ref(db, `matches/${i}`), {result: r, closed: true}); window.recalcPoints(); }
     };
 
     window.delMatch = (i) => { if(confirm("Smazat zápas?")) remove(ref(db, `matches/${i}`)); };
-    window.clearAllTips = () => { if(confirm("Smazat VŠECHNY tipy?")) remove(ref(db, "tips")); };
+    window.clearAllTips = () => { if(confirm("Smazat VŠECHNY tipy všech hráčů?")) remove(ref(db, "tips")); };
     window.clearAllPoints = () => { if(confirm("Vynulovat body všem?")) remove(ref(db, "points")); };
 
     window.sendTip = (i) => {
@@ -165,6 +180,7 @@
         tips = d.tips || {};
         points = d.points || {};
         
+        // Render zápasů
         const div = document.getElementById("matches");
         div.innerHTML = "";
         matches.forEach((m, i) => {
@@ -179,25 +195,37 @@
                 </div>`;
         });
 
+        // Render tabulky
         let table = document.getElementById("playersTable");
         let head = "<thead><tr><th>Hráč</th><th>Body</th>";
         matches.forEach((m, i) => { if(m) head += `<th>Z${i+1}</th>`; });
         head += "</tr></thead><tbody>";
 
-        let sorted = Object.keys(tips).sort((a,b)=>(points[b]||0)-(points[a]||0));
-        let body = "";
-        sorted.forEach(id => {
-            body += `<tr><td data-label="Hráč"><b>${tips[id].name}</b></td><td data-label="Body" class="winner-cell">${points[id]||0}</td>`;
+        let sortedIds = Object.keys(tips).sort((a,b)=>(points[b]||0)-(points[a]||0));
+        sortedIds.forEach(id => {
+            head += `<tr><td data-label="Hráč"><b>${tips[id].name}</b></td><td data-label="Body" class="winner-cell">${points[id]||0}</td>`;
             matches.forEach((m, i) => {
                 if(m) {
                     let playerTip = (tips[id].tips && tips[id].tips[i]) ? tips[id].tips[i] : "-";
-                    body += `<td data-label="Z${i+1} (${m.home.substring(0,3)})">${playerTip}</td>`;
+                    head += `<td data-label="Z${i+1} (${m.home.substring(0,3)})">${playerTip}</td>`;
                 }
             });
-            body += "</tr>";
+            head += "</tr>";
         });
-        table.innerHTML = head + body + "</tbody>";
+        table.innerHTML = head + "</tbody>";
 
+        // Render Adminu - Správa hráčů
+        const pAdmin = document.getElementById("adminPlayers");
+        pAdmin.innerHTML = "";
+        sortedIds.forEach(id => {
+            pAdmin.innerHTML += `
+                <div class="player-manage-item">
+                    <span><b>${tips[id].name}</b> (${points[id]||0} b)</span>
+                    <button onclick="window.deletePlayer('${id}', '${tips[id].name}')" class="danger" style="padding: 5px 10px; font-size: 12px;">Smazat hráče</button>
+                </div>`;
+        });
+
+        // Render Adminu - Správa zápasů
         const ad = document.getElementById("adminMatches");
         ad.innerHTML = "";
         matches.forEach((m, i) => {
