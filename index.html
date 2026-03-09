@@ -7,25 +7,24 @@
     <style>
         body{font-family:Arial, sans-serif;background:#0f172a;color:white;text-align:center;margin:0;padding:10px;}
         h1{color: #3b82f6; margin-bottom: 20px;}
-        .match{background:#1e293b;padding:20px;margin:15px auto;border-radius:12px;max-width:500px;border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);}
+        .match{background:#1e293b;padding:20px;margin:15px auto;border-radius:12px;max-width:500px;border: 1px solid #334155;}
         button{padding:12px 18px;border:none;border-radius:8px;background:#3b82f6;color:white;cursor:pointer;margin:5px;transition:0.2s; font-weight: bold;}
         button:hover{background:#2563eb;}
-        button:disabled{background:#475569 !important; cursor: not-allowed; opacity: 0.6; transform: none !important;}
+        button:disabled{background:#475569 !important; cursor: not-allowed; opacity: 0.6;}
         .admin{background:#111827;padding:20px;display:none;border-radius:10px;max-width:750px;margin:40px auto;border: 2px dashed #ef4444;}
         .admin-item{background:#1e293b; margin-bottom:15px; padding:15px; border-radius:8px; border:1px solid #444; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px;}
         input{padding:10px;border-radius:6px;background: #0f172a; color: white; border: 1px solid #475569; font-size: 14px;}
-        table{margin:20px auto;border-collapse:collapse;width:95%;max-width:900px;background: #1e293b; border-radius: 8px; overflow: hidden;}
+        table{margin:20px auto;border-collapse:collapse;width:95%;max-width:900px;background: #1e293b;}
         td,th{border:1px solid #334155;padding:12px;text-align:center;}
         th{background:#334155; color: #94a3b8; text-transform: uppercase; font-size: 11px;}
         .winner-cell{color:#fbbf24; font-weight:bold;}
         .danger{background:#991b1b !important;}
-        .danger:hover{background:#7f1d1d !important;}
     </style>
 </head>
 <body>
 
     <h1>🏆 Tipovačka</h1>
-    <button onclick="window.adminLogin()">⚙️ Admin sekce</button>
+    <button id="adminLoginBtn">⚙️ Admin sekce</button>
 
     <div id="matches">Načítám zápasy...</div>
 
@@ -36,12 +35,12 @@
 
     <div class="admin" id="adminPanel">
         <h2>🛠️ Admin Panel</h2>
-        <button onclick="document.getElementById('adminPanel').style.display='none'" style="background:#475569">Zavřít</button>
-        <button onclick="window.addMatch()" style="background:#059669">+ Přidat zápas</button>
-        <button onclick="window.recalcPoints()" style="background:#8b5cf6">🔄 Přepočítat body</button>
+        <button id="closeAdminBtn" style="background:#475569">Zavřít</button>
+        <button id="addMatchBtn" style="background:#059669">+ Přidat zápas</button>
+        <button id="recalcBtn" style="background:#8b5cf6">🔄 Přepočítat body</button>
         <div style="margin-top:10px;">
-            <button onclick="window.clearAllTips()" class="danger">🗑️ Smazat všechny tipy</button>
-            <button onclick="window.clearAllPoints()" class="danger">📉 Vynulovat body</button>
+            <button id="clearTipsBtn" class="danger">🗑️ Smazat všechny tipy</button>
+            <button id="clearPointsBtn" class="danger">📉 Vynulovat body</button>
         </div>
         <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
         <div id="adminMatches"></div>
@@ -49,7 +48,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
@@ -65,11 +64,26 @@
     const db = getDatabase(app);
 
     const ADMIN_HESLO = "Acsparta333";
-
     let matches = [], tips = {}, points = {};
     let pId = localStorage.getItem("pId") || "p" + Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
+    // --- PŘIPOJENÍ TLAČÍTEK ---
+    document.getElementById("adminLoginBtn").onclick = () => {
+        let p = prompt("Zadej heslo:");
+        if (p === ADMIN_HESLO) document.getElementById("adminPanel").style.display = "block";
+        else if (p !== null) alert("Chyba!");
+    };
+    document.getElementById("closeAdminBtn").onclick = () => document.getElementById("adminPanel").style.display = "none";
+    document.getElementById("addMatchBtn").onclick = () => {
+        const newIdx = matches.length;
+        set(ref(db, `matches/${newIdx}`), {home:"Tým A", away:"Tým B", closed:false, result:"-"});
+    };
+    document.getElementById("recalcBtn").onclick = () => recalcPoints();
+    document.getElementById("clearTipsBtn").onclick = () => { if(confirm("Smazat VŠECHNY tipy?")) remove(ref(db, "tips")); };
+    document.getElementById("clearPointsBtn").onclick = () => { if(confirm("Vynulovat body?")) remove(ref(db, "points")); };
+
+    // --- DATA ---
     onValue(ref(db, "/"), snap => {
         const d = snap.val() || {};
         matches = d.matches || [];
@@ -78,107 +92,96 @@
         render();
     });
 
-    window.adminLogin = function() {
-        let p = prompt("Zadej heslo:");
-        if (p === ADMIN_HESLO) {
-            document.getElementById("adminPanel").style.display = "block";
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        } else if (p !== null) alert("Chyba!");
-    };
-
     function render() {
         const div = document.getElementById("matches");
         div.innerHTML = "";
-        
         matches.forEach((m, i) => {
             if(!m) return;
             const hasTipped = tips[pId]?.tips?.[i];
-            div.innerHTML += `
-                <div class="match">
-                    <h2>${m.home} — ${m.away}</h2>
-                    <p>Výsledek: <b>${m.result || "- : -"}</b></p>
-                    <button onclick="window.sendTip(${i})" ${m.closed ? 'disabled' : ''}>
-                        ${m.closed ? '🔒 Uzavřeno' : (hasTipped ? '📝 Upravit tip' : '🏒 Tipovat')}
-                    </button>
-                </div>`;
+            const mDiv = document.createElement("div");
+            mDiv.className = "match";
+            mDiv.innerHTML = `
+                <h2>${m.home} — ${m.away}</h2>
+                <p>Výsledek: <b>${m.result || "- : -"}</b></p>
+            `;
+            const btn = document.createElement("button");
+            btn.disabled = m.closed;
+            btn.innerText = m.closed ? '🔒 Uzavřeno' : (hasTipped ? '📝 Upravit tip' : '🏒 Tipovat');
+            btn.onclick = () => sendTip(i);
+            mDiv.appendChild(btn);
+            div.appendChild(mDiv);
         });
         renderTable();
         renderAdmin();
     }
 
-    window.sendTip = function(i) {
+    function sendTip(i) {
         let n = localStorage.getItem("pName") || prompt("Tvoje jméno:");
         if(!n) return;
         localStorage.setItem("pName", n);
         let currentTip = tips[pId]?.tips?.[i] || "";
-        let t = prompt(`${matches[i].home} vs ${matches[i].away}\nZadej skóre (např. 3:2):`, currentTip);
+        let t = prompt(`${matches[i].home} vs ${matches[i].away}\nTip (např. 3:2):`, currentTip);
         if(t && t.includes(":")) {
             set(ref(db, `tips/${pId}/name`), n);
             set(ref(db, `tips/${pId}/tips/${i}`), t);
         }
-    };
+    }
 
     function renderTable() {
-        let table = document.getElementById("playersTable");
         let h = "<tr><th>Hráč</th><th style='color:#fbbf24;'>Body</th>";
         matches.forEach((m, i) => { if(m) h += `<th>Z${i+1}</th>`; });
         h += "</tr>";
-        
-        let sortedPlayers = Object.keys(tips).sort((a, b) => (points[b] || 0) - (points[a] || 0));
-        sortedPlayers.forEach(id => {
-            h += `<tr><td><b>${tips[id].name}</b></td><td class="winner-cell">${points[id] || 0}</td>`;
-            matches.forEach((m, i) => {
-                if(m) h += `<td style="font-size:0.9em; color:#94a3b8;">${tips[id].tips?.[i] || "-"}</td>`;
-            });
+        let sorted = Object.keys(tips).sort((a,b) => (points[b]||0) - (points[a]||0));
+        sorted.forEach(id => {
+            h += `<tr><td><b>${tips[id].name}</b></td><td class="winner-cell">${points[id]||0}</td>`;
+            matches.forEach((m, i) => { if(m) h += `<td>${tips[id].tips?.[i] || "-"}</td>`; });
             h += "</tr>";
         });
-        table.innerHTML = h;
+        document.getElementById("playersTable").innerHTML = h;
     }
 
-    // --- ADMIN SEKCE ---
-    window.addMatch = () => {
-        if(!matches) matches = [];
-        matches.push({home:"Tým A", away:"Tým B", closed:false, result:"-"});
-        set(ref(db, "matches"), matches);
-    };
-
-    window.updateTeam = (i, side, name) => set(ref(db, `matches/${i}/${side}`), name);
-
-    window.setRes = (i) => {
-        let r = prompt("Výsledek:", "2:1");
-        if(r && r.includes(":")) {
-            set(ref(db, `matches/${i}/result`), r);
-            set(ref(db, `matches/${i}/closed`), true);
-            window.recalcPoints();
-        }
-    };
-
-    window.del = (i) => { if(confirm("Smazat?")) { matches.splice(i, 1); set(ref(db, "matches"), matches); }};
-
-    window.clearAllTips = () => { if(confirm("Opravdu smazat VŠECHNY tipy všech hráčů?")) remove(ref(db, "tips")); };
-    window.clearAllPoints = () => { if(confirm("Vynulovat všem body?")) remove(ref(db, "points")); };
-
     function renderAdmin() {
-        let ad = document.getElementById("adminMatches");
+        const ad = document.getElementById("adminMatches");
         if (document.getElementById("adminPanel").style.display !== "block") return;
         ad.innerHTML = "";
         matches.forEach((m, i) => {
             if(!m) return;
-            ad.innerHTML += `
-                <div class="admin-item">
-                    <input type="text" value="${m.home}" oninput="window.updateTeam(${i}, 'home', this.value)" style="width:100px">
-                    <span>vs</span>
-                    <input type="text" value="${m.away}" oninput="window.updateTeam(${i}, 'away', this.value)" style="width:100px">
-                    <button onclick="window.setRes(${i})" style="background:#10b981">Výsledek</button>
-                    <button onclick="set(ref(db, 'matches/${i}/closed'), ${!m.closed})" style="background:#6366f1">
-                        ${m.closed ? '🔓 Otevřít' : '🔒 Zavřít'}
-                    </button>
-                    <button onclick="window.del(${i})" class="danger">🗑️</button>
-                </div>`;
+            const row = document.createElement("div");
+            row.className = "admin-item";
+            row.innerHTML = `
+                <input type="text" value="${m.home}" class="h-in"> vs 
+                <input type="text" value="${m.away}" class="a-in">
+            `;
+            
+            const resBtn = document.createElement("button");
+            resBtn.innerText = "Výsledek";
+            resBtn.style.background = "#10b981";
+            resBtn.onclick = () => {
+                let r = prompt("Výsledek:", "2:1");
+                if(r) { update(ref(db, `matches/${i}`), {result: r, closed: true}); recalcPoints(); }
+            };
+
+            const toggleBtn = document.createElement("button");
+            toggleBtn.innerText = m.closed ? '🔓 Otevřít' : '🔒 Zavřít';
+            toggleBtn.style.background = "#6366f1";
+            toggleBtn.onclick = () => set(ref(db, `matches/${i}/closed`), !m.closed);
+
+            const delBtn = document.createElement("button");
+            delBtn.innerText = "🗑️";
+            delBtn.className = "danger";
+            delBtn.onclick = () => { if(confirm("Smazat?")) remove(ref(db, `matches/${i}`)); };
+
+            row.querySelectorAll(".h-in")[0].oninput = (e) => set(ref(db, `matches/${i}/home`), e.target.value);
+            row.querySelectorAll(".a-in")[0].oninput = (e) => set(ref(db, `matches/${i}/away`), e.target.value);
+
+            row.appendChild(resBtn);
+            row.appendChild(toggleBtn);
+            row.appendChild(delBtn);
+            ad.appendChild(row);
         });
     }
 
-    window.recalcPoints = function() {
+    function recalcPoints() {
         let p = {};
         for (let id in tips) {
             let total = 0;
@@ -193,8 +196,7 @@
             p[id] = total;
         }
         set(ref(db, "points"), p);
-        alert("Body přepočítány!");
-    };
+    }
 </script>
 </body>
 </html>
