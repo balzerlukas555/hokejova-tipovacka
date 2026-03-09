@@ -3,34 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tipovačka Pro</title>
+    <title>Tipovačka</title>
     <style>
         body{font-family:Arial, sans-serif;background:#0f172a;color:white;text-align:center;margin:0;padding:10px;line-height:1.5;}
         h1{color: #3b82f6; margin: 10px 0 20px 0; font-size: 28px;}
         h2{font-size: 22px; margin-top: 30px;}
-        
         .menu-bar { margin-bottom: 20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
         #matches {display: flex; flex-direction: column; align-items: center; gap: 15px;}
         .match{background:#1e293b;padding:20px;border-radius:12px;width:100%;max-width:450px;border: 1px solid #334155; box-sizing: border-box;}
         .match-info { color: #94a3b8; font-size: 13px; margin-bottom: 2px; display: block; }
         .match-date { color: #3b82f6; font-size: 14px; font-weight: bold; margin-bottom: 8px; display: block; }
-        
         button{padding:12px 18px;border:none;border-radius:8px;background:#3b82f6;color:white;cursor:pointer;font-weight:bold;font-size:14px; transition:0.2s; touch-action: manipulation;}
         button:active{transform: scale(0.96);}
         button:disabled{background:#475569 !important; cursor:not-allowed; opacity:0.6;}
         .btn-alt { background: #475569; }
         .danger{background:#991b1b !important;}
-
         .admin{background:#111827;padding:15px;display:none;border-radius:12px;max-width:600px;margin:30px auto;border:2px dashed #ef4444; box-sizing: border-box;}
         .admin-item{background:#1e293b; margin-bottom:12px; padding:15px; border-radius:8px; border:1px solid #444; display:flex; flex-direction: column; gap: 10px; align-items: center;}
-        
         .tableWrap { width: 100%; max-width: 1000px; margin: 20px auto; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
-        
-        /* Barvy pro tipy */
-        .tip-exact { background: #065f46 !important; color: #6ee7b7 !important; font-weight: bold; } /* 3 body - zelená */
-        .tip-tendency { background: #854d0e !important; color: #fde047 !important; } /* 1 bod - žlutá */
+        .tip-exact { background: #065f46 !important; color: #6ee7b7 !important; font-weight: bold; }
+        .tip-tendency { background: #854d0e !important; color: #fde047 !important; }
         .my-row { border: 2px solid #3b82f6 !important; background: #1e294b !important; }
+        input{padding:10px;border-radius:8px;background:#0f172a;color:white;border:1px solid #475569;}
+        .input-wide { width: 220px; }
 
         @media (max-width: 600px) {
             thead { display: none; }
@@ -67,10 +63,14 @@
             <button onclick="window.addMatch()" style="background:#059669">Přidat zápas</button>
             <button onclick="window.recalcPoints()" style="background:#8b5cf6">Přepočítat body</button>
         </div>
-        <div style="margin-top:20px;">
+        
+        <div style="margin-top:20px; display:flex; justify-content:center; gap:10px;">
             <button onclick="window.clearAllTips()" class="danger">Smazat VŠE (Tipy + Zápasy)</button>
+            <button onclick="window.clearAllPoints()" class="danger">Vynulovat VŠE (Body)</button>
         </div>
-        <div id="adminMatches" style="margin-top:20px;"></div>
+
+        <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+        <div id="adminMatches"></div>
     </div>
 
 <script type="module">
@@ -93,7 +93,6 @@
     let matches = [], tips = {}, points = {}, pId = localStorage.getItem("pId") || "p"+Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
-    // POMOCNÁ FUNKCE: Kontrola času pro auto-zámek
     const isLocked = (m) => {
         if (m.closed) return true;
         if (!m.date || !m.date.includes(".")) return false;
@@ -106,17 +105,16 @@
         } catch(e) { return false; }
     };
 
-    // EXPORTY PRO HTML
     window.changeName = () => {
         let n = prompt("Zadej jméno:", localStorage.getItem("pName") || "");
         if (n) { localStorage.setItem("pName", n.trim()); set(ref(db, `tips/${pId}/name`), n.trim()); }
     };
 
     window.adminLogin = () => { if (prompt("Heslo:") === ADMIN_HESLO) document.getElementById("adminPanel").style.display = "block"; };
-    
     window.addMatch = () => set(ref(db, `matches/${matches.length}`), {home:"Domácí", away:"Hosté", date:"", desc:"", closed:false, result:"-"});
-    
     window.updateMatchData = (i, field, val) => update(ref(db, `matches/${i}`), {[field]: val});
+    window.toggleMatch = (i, state) => update(ref(db, `matches/${i}`), {closed: state});
+    window.delMatch = (i) => { if(confirm("Smazat tento zápas?")) remove(ref(db, `matches/${i}`)); };
     
     window.setRes = (i) => {
         let r = prompt("Výsledek (např. 3:1):");
@@ -124,6 +122,7 @@
     };
 
     window.clearAllTips = () => { if(confirm("Smazat vše?")) { remove(ref(db, "tips")); remove(ref(db, "matches")); } };
+    window.clearAllPoints = () => { if(confirm("Vynulovat body všem?")) remove(ref(db, "points")); };
 
     window.sendTip = (i) => {
         let n = localStorage.getItem("pName") || prompt("Jméno:");
@@ -153,7 +152,6 @@
         matches = d.matches ? (Array.isArray(d.matches) ? d.matches : Object.values(d.matches)) : [];
         tips = d.tips || {}; points = d.points || {};
         
-        // Zápasy
         const mDiv = document.getElementById("matches");
         mDiv.innerHTML = "";
         matches.forEach((m, i) => {
@@ -168,10 +166,8 @@
             </div>`;
         });
 
-        // Tabulka
         let table = document.getElementById("playersTable");
         let html = "<thead><tr><th>Hráč</th><th>Body</th>" + matches.map((m,i)=>m?`<th>Z${i+1}</th>`:'').join('') + "</tr></thead><tbody>";
-        
         Object.keys(tips).sort((a,b)=>(points[b]||0)-(points[a]||0)).forEach(id => {
             html += `<tr class="${id === pId ? 'my-row' : ''}"><td data-label="Hráč"><b>${tips[id].name || "IDK"}</b></td><td data-label="Body"><b>${points[id]||0}</b></td>`;
             matches.forEach((m, i) => {
@@ -189,7 +185,6 @@
         });
         table.innerHTML = html + "</tbody>";
 
-        // Admin
         const ad = document.getElementById("adminMatches");
         ad.innerHTML = "";
         matches.forEach((m, i) => {
@@ -198,7 +193,11 @@
                 <input class="input-wide" onchange="window.updateMatchData(${i},'desc',this.value)" value="${m.desc||''}" placeholder="Popis">
                 <input class="input-wide" onchange="window.updateMatchData(${i},'date',this.value)" value="${m.date||''}" placeholder="10.03. 18:00">
                 <div><input oninput="window.updateMatchData(${i},'home',this.value)" value="${m.home}"> <input oninput="window.updateMatchData(${i},'away',this.value)" value="${m.away}"></div>
-                <button onclick="window.setRes(${i})" style="background:#10b981">Výsledek</button>
+                <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:center;">
+                    <button onclick="window.setRes(${i})" style="background:#10b981">Výsledek</button>
+                    <button onclick="window.toggleMatch(${i}, ${!m.closed})" style="background:#6366f1">${m.closed ? 'Otevřít' : 'Zavřít'}</button>
+                    <button onclick="window.delMatch(${i})" class="danger">Smazat</button>
+                </div>
             </div>`;
         });
     });
