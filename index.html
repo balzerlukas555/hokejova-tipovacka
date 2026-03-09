@@ -38,7 +38,6 @@
             td { display: flex; justify-content: space-between; padding: 8px 5px; border: none; border-bottom: 1px solid #2d3748; text-align: right; }
             td:last-child { border-bottom: none; }
             td::before { content: attr(data-label); font-weight: bold; text-align: left; color: #94a3b8; }
-            .player-manage-item { flex-direction: column; text-align: center; }
         }
 
         @media (min-width: 601px) {
@@ -64,7 +63,7 @@
         <table id="playersTable"></table>
     </div>
 
-    <div class="admin" id="adminPanel">
+    <div id="adminPanel" class="admin">
         <h2>Admin Panel</h2>
         <div style="display:flex; justify-content:center; gap:5px; flex-wrap:wrap;">
             <button onclick="document.getElementById('adminPanel').style.display='none'" style="background:#475569">Zavřít</button>
@@ -73,7 +72,7 @@
         </div>
         
         <div style="margin-top:20px;">
-            <button onclick="window.clearAllTips()" class="danger">Smazat VŠE (Tipy)</button>
+            <button onclick="window.clearAllTips()" class="danger">Smazat VŠE (Tipy + Zápasy)</button>
             <button onclick="window.clearAllPoints()" class="danger">Vynulovat VŠE (Body)</button>
         </div>
 
@@ -107,7 +106,7 @@
     let matches = [], tips = {}, points = {}, pId = localStorage.getItem("pId") || "p"+Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
-    // EXPORT FUNKCÍ PRO HTML (OPRAVA ReferenceError)
+    // EXPORT FUNKCÍ PRO PŘÍSTUP Z HTML (OPRAVA ReferenceError: set is not defined)
     window.changeName = () => {
         let oldName = localStorage.getItem("pName") || "";
         let n = prompt("Zadej nové jméno:", oldName);
@@ -132,20 +131,34 @@
 
     window.updateMatchData = (i, field, val) => update(ref(db, `matches/${i}`), {[field]: val});
     window.toggleMatch = (i, state) => update(ref(db, `matches/${i}`), {closed: state});
+    
     window.setRes = (i) => {
         let r = prompt("Výsledek (např. 3:1):");
         if(r) { update(ref(db, `matches/${i}`), {result: r, closed: true}); window.recalcPoints(); }
     };
-    window.delMatch = (i) => { if(confirm("Smazat zápas?")) remove(ref(db, `matches/${i}`)); };
-    window.deletePlayer = (id, name) => { if(confirm(`Smazat hráče ${name}?`)) remove(ref(db, `tips/${id}`)); };
-    window.clearAllTips = () => { if(confirm("Smazat VŠE?")) remove(ref(db, "tips")); };
-    window.clearAllPoints = () => { if(confirm("Vynulovat body?")) remove(ref(db, "points")); };
+
+    window.delMatch = (i) => { if(confirm("Smazat tento zápas?")) remove(ref(db, `matches/${i}`)); };
+    
+    // OPRAVA: Tlačítko nyní maže tipy i zápasy najednou
+    window.clearAllTips = () => { 
+        if(confirm("Opravdu chceš smazat VŠECHNY tipy i VŠECHNY vytvořené zápasy?")) {
+            remove(ref(db, "tips")); 
+            remove(ref(db, "matches"));
+        } 
+    };
+
+    window.clearAllPoints = () => { if(confirm("Vynulovat body všem hráčům?")) remove(ref(db, "points")); };
+    
+    window.deletePlayer = (id, name) => { if(confirm(`Smazat hráče ${name}?`)) { remove(ref(db, `tips/${id}`)); remove(ref(db, `points/${id}`)); } };
 
     window.sendTip = (i) => {
         let n = localStorage.getItem("pName");
-        if(!n) { n = prompt("Jméno:"); if(!n) return; localStorage.setItem("pName", n); }
-        let t = prompt("Tip (např. 2:1):", tips[pId]?.tips?.[i] || "");
-        if(t && t.includes(":")) { set(ref(db, `tips/${pId}/name`), n); set(ref(db, `tips/${pId}/tips/${i}`), t); }
+        if(!n) { n = prompt("Tvoje jméno:"); if(!n) return; localStorage.setItem("pName", n); }
+        let t = prompt("Tvůj tip (např. 2:1):", tips[pId]?.tips?.[i] || "");
+        if(t && t.includes(":")) {
+            set(ref(db, `tips/${pId}/name`), n);
+            set(ref(db, `tips/${pId}/tips/${i}`), t);
+        }
     };
 
     window.recalcPoints = () => {
@@ -167,13 +180,13 @@
 
     onValue(ref(db, "/"), snap => {
         const d = snap.val() || {};
-        // OPRAVA: Převedení objektu na pole, pokud Firebase nevrátí čisté pole
+        // OPRAVA: Ošetření, aby matches byl vždy pole pro forEach
         matches = d.matches ? (Array.isArray(d.matches) ? d.matches : Object.values(d.matches)) : [];
         tips = d.tips || {};
         points = d.points || {};
         
         const div = document.getElementById("matches");
-        div.innerHTML = matches.length ? "" : "Žádné zápasy.";
+        div.innerHTML = matches.length ? "" : "Zatím nejsou vypsány žádné zápasy.";
         matches.forEach((m, i) => {
             if(!m) return;
             div.innerHTML += `
@@ -193,14 +206,14 @@
         matches.forEach((m, i) => { 
             if(m) {
                 let dStr = m.date ? m.date.split(' ')[0] : "";
-                head += `<th>Z${i+1}<br><small>${dStr}</small><br><i style="font-size:9px">${m.desc || ''}</i></th>`; 
+                head += `<th>Z${i+1}<br><small>${dStr}</small></th>`; 
             }
         });
         head += "</tr></thead><tbody>";
 
         let sortedIds = Object.keys(tips).sort((a,b)=>(points[b]||0)-(points[a]||0));
         sortedIds.forEach(id => {
-            head += `<tr><td data-label="Hráč"><b>${tips[id].name || "Anonym"}</b></td><td data-label="Body" class="winner-cell">${points[id]||0}</td>`;
+            head += `<tr><td data-label="Hráč"><b>${tips[id].name || "IDK"}</b></td><td data-label="Body" class="winner-cell">${points[id]||0}</td>`;
             matches.forEach((m, i) => {
                 if(m) head += `<td data-label="Z${i+1}">${(tips[id].tips && tips[id].tips[i]) ? tips[id].tips[i] : "-"}</td>`;
             });
@@ -211,7 +224,7 @@
         const pAdmin = document.getElementById("adminPlayers");
         pAdmin.innerHTML = "";
         sortedIds.forEach(id => {
-            pAdmin.innerHTML += `<div class="player-manage-item"><span><b>${tips[id].name || "Anonym"}</b></span><button onclick="window.deletePlayer('${id}', '${tips[id].name}')" class="danger">Smazat</button></div>`;
+            pAdmin.innerHTML += `<div class="player-manage-item"><span><b>${tips[id].name || "IDK"}</b></span><button onclick="window.deletePlayer('${id}', '${tips[id].name || 'IDK'}')" class="danger">Smazat</button></div>`;
         });
 
         const ad = document.getElementById("adminMatches");
