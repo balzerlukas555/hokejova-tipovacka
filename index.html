@@ -6,29 +6,37 @@
     <title>Hokejová Tipovačka</title>
     <style>
         body{font-family:Arial, sans-serif;background:#0f172a;color:white;text-align:center;margin:0;padding:10px;}
+        h1{color: #3b82f6;}
         .match{background:#1e293b;padding:20px;margin:15px auto;border-radius:12px;max-width:500px;border: 1px solid #334155;}
-        button{padding:12px 18px;border:none;border-radius:8px;background:#3b82f6;color:white;cursor:pointer;margin:5px;}
+        button{padding:12px 18px;border:none;border-radius:8px;background:#3b82f6;color:white;cursor:pointer;margin:5px;transition:0.2s;}
         button:hover{background:#2563eb;}
+        button:disabled{background:#475569;cursor:not-allowed;}
         .admin{background:#111827;padding:20px;display:none;border-radius:10px;max-width:700px;margin:40px auto;border: 2px dashed #ef4444;}
         input{padding:8px;border-radius:6px;margin:5px;background: #1e293b; color: white; border: 1px solid #475569;}
-        table{margin:20px auto;border-collapse:collapse;width:95%;background: #1e293b;}
-        td,th{border:1px solid #334155;padding:10px;}
+        table{margin:20px auto;border-collapse:collapse;width:95%;max-width:800px;background: #1e293b;}
+        td,th{border:1px solid #334155;padding:10px;text-align:center;}
+        th{background:#334155;}
+        .winner{color:#fbbf24; font-weight:bold;}
     </style>
 </head>
 <body>
 
     <h1>🏒 Hokejová Tipovačka</h1>
-    <button onclick="adminLogin()">Admin přihlášení</button>
+    <button onclick="window.adminLogin()">Admin přihlášení</button>
 
-    <div id="matches">Načítám zápasy...</div>
+    <div id="matches">Načítám zápasy z databáze...</div>
 
-    <h2>Tabulka</h2>
-    <div style="overflow-x:auto;"><table id="playersTable"></table></div>
+    <h2>Průběžná tabulka</h2>
+    <div style="overflow-x:auto;">
+        <table id="playersTable"></table>
+    </div>
 
     <div class="admin" id="adminPanel">
-        <h2>Admin panel</h2>
-        <button onclick="document.getElementById('adminPanel').style.display='none'" style="background:#ef4444">Zavřít</button>
-        <button onclick="addMatch()">+ Přidat zápas</button>
+        <h2>Admin Panel</h2>
+        <button onclick="document.getElementById('adminPanel').style.display='none'" style="background:#475569">Zavřít Admin</button>
+        <button onclick="window.addMatch()">+ Přidat nový zápas</button>
+        <button onclick="window.recalcPoints()" style="background:#8b5cf6">🔄 Přepočítat body</button>
+        <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
         <div id="adminMatches"></div>
     </div>
 
@@ -49,16 +57,16 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // --- NASTAVENÍ HESLA ---
-    const MOJE_HESLO = "Acsparta333"; 
+    // --- TVOJE HESLO (Natvrdo jako text) ---
+    const ADMIN_HESLO = "Acsparta333";
 
     window.adminLogin = function() {
-        let p = prompt("Zadej heslo:");
-        if (p === MOJE_HESLO) {
+        let p = prompt("Zadej admin heslo:");
+        if (p === ADMIN_HESLO) {
             document.getElementById("adminPanel").style.display = "block";
-            renderAdmin();
-        } else {
-            alert("Spatne heslo!");
+            window.scrollTo(0, document.body.scrollHeight);
+        } else if (p !== null) {
+            alert("Špatné heslo!");
         }
     };
 
@@ -66,7 +74,6 @@
     let pId = localStorage.getItem("pId") || "p" + Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
-    // Načítání dat
     onValue(ref(db, "/"), snap => {
         const d = snap.val() || {};
         matches = d.matches || [];
@@ -83,21 +90,21 @@
             div.innerHTML += `
                 <div class="match">
                     <h2>${m.home} vs ${m.away}</h2>
-                    <button onclick="sendTip(${i})" ${m.closed ? 'disabled' : ''}>
-                        ${m.closed ? 'Uzavřeno' : 'Tipovat'}
+                    <p>Výsledek: <b>${m.result || "- : -"}</b></p>
+                    <button onclick="window.sendTip(${i})" ${m.closed ? 'disabled' : ''}>
+                        ${m.closed ? 'Tipování uzavřeno' : 'Tipovat skóre'}
                     </button>
-                    <p>Výsledek: <b>${m.result || "-:-"}</b></p>
                 </div>`;
         });
         renderTable();
-        if(document.getElementById("adminPanel").style.display === "block") renderAdmin();
+        renderAdmin();
     }
 
     window.sendTip = function(i) {
         let n = localStorage.getItem("pName") || prompt("Tvoje jméno:");
         if(!n) return;
         localStorage.setItem("pName", n);
-        let t = prompt("Tvůj tip (např. 3:2):");
+        let t = prompt(`${matches[i].home} vs ${matches[i].away}\nZadej tip (např. 3:2):`);
         if(t && t.includes(":")) {
             set(ref(db, `tips/${pId}/name`), n);
             set(ref(db, `tips/${pId}/tips/${i}`), t);
@@ -105,25 +112,43 @@
     };
 
     function renderTable() {
-        let h = "<tr><th>Hráč</th><th>Body</th></tr>";
+        let h = "<tr><th>Hráč</th><th>Body</th>";
+        matches.forEach((m, i) => { if(m) h += `<th>Z${i+1}</th>`; });
+        h += "</tr>";
+        
         for (let id in tips) {
-            h += `<tr><td>${tips[id].name}</td><td>${points[id] || 0}</td></tr>`;
+            h += `<tr><td><b>${tips[id].name}</b></td><td class="winner">${points[id] || 0}</td>`;
+            matches.forEach((m, i) => {
+                if(m) h += `<td>${tips[id].tips?.[i] || "-"}</td>`;
+            });
+            h += "</tr>";
         }
         document.getElementById("playersTable").innerHTML = h;
     }
 
-    // ADMIN FUNKCE
+    // --- ADMIN FUNKCE ---
     window.addMatch = function() {
         matches.push({home:"Tým A", away:"Tým B", closed:false, result:"-"});
         set(ref(db, "matches"), matches);
     };
 
+    window.updateMatch = function(i, field, val) {
+        set(ref(db, `matches/${i}/${field}`), val);
+    };
+
     window.setRes = function(i) {
-        let r = prompt("Výsledek (3:2):");
+        let r = prompt("Konečný výsledek (např. 4:2):");
         if(r) {
             set(ref(db, `matches/${i}/result`), r);
             set(ref(db, `matches/${i}/closed`), true);
-            recalc();
+            window.recalcPoints();
+        }
+    };
+
+    window.del = (i) => {
+        if(confirm("Smazat zápas?")) {
+            matches.splice(i, 1);
+            set(ref(db, "matches"), matches);
         }
     };
 
@@ -133,32 +158,35 @@
         matches.forEach((m, i) => {
             if(!m) return;
             ad.innerHTML += `
-                <div style="border-bottom:1px solid #444; padding:10px;">
-                    ${m.home} vs ${m.away} 
-                    <button onclick="setRes(${i})">Zadat výsledek</button>
-                    <button onclick="del(${i})" style="background:red">Smazat</button>
+                <div style="background:#1e293b; margin-bottom:10px; padding:10px; border-radius:8px; border:1px solid #444;">
+                    <input value="${m.home}" onchange="window.updateMatch(${i}, 'home', this.value)" style="width:80px"> vs 
+                    <input value="${m.away}" onchange="window.updateMatch(${i}, 'away', this.value)" style="width:80px">
+                    <br>
+                    <button onclick="window.setRes(${i})" style="background:#10b981">Zadat výsledek</button>
+                    <button onclick="set(ref(db, 'matches/${i}/closed'), ${!m.closed})">${m.closed ? '🔓 Otevřít' : '🔒 Zavřít'}</button>
+                    <button onclick="window.del(${i})" style="background:#991b1b">Smazat</button>
                 </div>`;
         });
     }
 
-    window.del = (i) => { matches.splice(i,1); set(ref(db, "matches"), matches); };
-
-    function recalc() {
+    window.recalcPoints = function() {
         let p = {};
         for (let id in tips) {
             let total = 0;
             matches.forEach((m, i) => {
-                if(m.result !== "-" && tips[id].tips?.[i]) {
+                if(m && m.result && m.result !== "-" && tips[id].tips?.[i]) {
                     let [rh, ra] = m.result.split(":").map(Number);
                     let [th, ta] = tips[id].tips[i].split(":").map(Number);
-                    if(rh===th && ra===ta) total += 3;
-                    else if((rh>ra && th>ta) || (rh<ra && th<ta) || (rh===ra && th===ta)) total += 1;
+                    if(rh === th && ra === ta) total += 3; // Přesný tip
+                    else if((rh > ra && th > ta) || (rh < ra && th < ta) || (rh === ra && th === ta)) total += 1; // Vítěz
                 }
             });
             p[id] = total;
         }
         set(ref(db, "points"), p);
-    }
+        alert("Body byly aktualizovány!");
+    };
+
 </script>
 </body>
 </html>
