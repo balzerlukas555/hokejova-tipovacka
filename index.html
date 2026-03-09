@@ -1,478 +1,244 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Sportovní Tipovačka</title>
-
-<style>
-
-body{
-font-family:Arial;
-background:#0f172a;
-color:white;
-text-align:center;
-margin:0;
-padding:10px;
-}
-
-h1{
-margin-top:10px;
-}
-
-.match{
-background:#1e293b;
-padding:20px;
-margin:15px auto;
-border-radius:12px;
-max-width:500px;
-}
-
-.match h2{
-margin:5px 0 10px 0;
-}
-
-button{
-padding:12px 18px;
-border:none;
-border-radius:8px;
-background:#3b82f6;
-color:white;
-cursor:pointer;
-margin:5px;
-font-size:14px;
-}
-
-button:hover{
-background:#2563eb;
-}
-
-.admin{
-background:#111827;
-padding:20px;
-margin-top:40px;
-display:none;
-border-radius:10px;
-max-width:700px;
-margin-left:auto;
-margin-right:auto;
-}
-
-input{
-padding:8px;
-border-radius:6px;
-border:none;
-margin:5px;
-}
-
-table{
-margin:auto;
-border-collapse:collapse;
-margin-top:10px;
-width:95%;
-max-width:900px;
-}
-
-td,th{
-border:1px solid gray;
-padding:6px 8px;
-font-size:14px;
-}
-
-.tableWrap{
-overflow-x:auto;
-}
-
-@media (max-width:600px){
-
-.match{
-padding:15px;
-}
-
-button{
-width:90%;
-margin-top:8px;
-}
-
-td,th{
-font-size:12px;
-padding:5px;
-}
-
-}
-
-</style>
-
-<!-- knihovna na hash -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
-
-<script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-const firebaseConfig = {
-apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
-authDomain: "tipovacka-fce0e.firebaseapp.com",
-databaseURL: "https://tipovacka-fce0e-default-rtdb.firebaseio.com",
-projectId: "tipovacka-fce0e",
-storageBucket: "tipovacka-fce0e.firebasestorage.app",
-messagingSenderId: "165273430060",
-appId: "1:165273430060:web:a6a6ba6952152855230989"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-/* HASH hesla Acsparta333 */
-const ADMIN_HASH="5ab4d8e6b5f9a7c4c6a52b6c3c43c2d4";
-
-let matches=[];
-let tips={};
-let points={};
-
-let playerId = localStorage.getItem("playerId");
-if(!playerId){
-playerId = "player_"+Math.random().toString(36).substr(2,9);
-localStorage.setItem("playerId",playerId);
-}
-
-let playerName = localStorage.getItem("playerName");
-
-window.login=function(){
-
-let pass=prompt("Admin heslo");
-
-if(md5(pass)===ADMIN_HASH){
-document.getElementById("adminPanel").style.display="block";
-}else{
-alert("Špatné heslo");
-}
-
-}
-
-window.logout=function(){
-document.getElementById("adminPanel").style.display="none";
-}
-
-onValue(ref(db,"matches"),snap=>{
-
-let data = snap.val() || [];
-
-if(Array.isArray(data)){
-matches = data;
-}else{
-matches = Object.values(data);
-}
-
-render();
-
-})
-
-onValue(ref(db,"tips"),snap=>{
-tips=snap.val()||{};
-render();
-})
-
-onValue(ref(db,"points"),snap=>{
-points=snap.val()||{};
-render();
-})
-
-function saveMatches(){
-set(ref(db,"matches"),matches);
-}
-
-function saveTips(){
-set(ref(db,"tips"),tips);
-}
-
-function savePoints(){
-set(ref(db,"points"),points);
-}
-
-function render(){
-
-let mdiv=document.getElementById("matches");
-if(!mdiv) return;
-
-mdiv.innerHTML="";
-
-matches.forEach((m,i)=>{
-
-let div=document.createElement("div");
-div.className="match";
-
-div.innerHTML=`
-
-<h2>${m.home} vs ${m.away}</h2>
-
-<p>${m.date||""}</p>
-
-<button onclick="tip(${i})" ${m.closed?"disabled":""}>Tipovat skóre</button>
-
-<p>Výsledek: ${m.result||"-"}</p>
-
-`;
-
-mdiv.appendChild(div);
-
-});
-
-renderTable();
-renderAdmin();
-
-}
-
-window.tip=function(id){
-
-if(!playerName){
-playerName=prompt("Tvoje jméno");
-localStorage.setItem("playerName",playerName);
-}
-
-let score=prompt("Zadej skóre (např 3:2)");
-
-if(!score) return;
-
-if(!tips[playerId]) tips[playerId]={name:playerName,tips:{}};
-
-tips[playerId].tips[id]=score;
-
-saveTips();
-
-}
-
-function renderTable(){
-
-let table=document.getElementById("playersTable");
-
-let html="<tr><th>Hráč</th><th>Body</th>";
-
-matches.forEach(m=>{
-html+=`<th>${m.home}-${m.away}</th>`;
-});
-
-html+="</tr>";
-
-for(let id in tips){
-
-html+=`<tr>
-<td>${tips[id].name}</td>
-<td>${points[id]||0}</td>`;
-
-matches.forEach((m,i)=>{
-
-let t=tips[id].tips?.[i]||"-";
-
-html+=`<td>${t}</td>`;
-
-});
-
-html+="</tr>";
-
-}
-
-table.innerHTML=html;
-
-}
-
-function renderAdmin(){
-
-let div=document.getElementById("adminMatches");
-if(!div) return;
-
-div.innerHTML="";
-
-matches.forEach((m,i)=>{
-
-let d=document.createElement("div");
-
-d.innerHTML=`
-
-<hr>
-
-<input value="${m.home}" onchange="changeTeam(${i},this.value,'home')">
-<input value="${m.away}" onchange="changeTeam(${i},this.value,'away')">
-
-<br>
-
-<input type="datetime-local" value="${m.date||""}" onchange="changeDate(${i},this.value)">
-
-<br>
-
-<button onclick="toggle(${i})">
-${m.closed?"Otevřít tipování":"Zavřít tipování"}
-</button>
-
-<button onclick="setResult(${i})">Uložit výsledek</button>
-
-<button onclick="deleteMatch(${i})">Smazat zápas</button>
-
-`;
-
-div.appendChild(d);
-
-});
-
-}
-
-window.changeTeam=function(id,val,type){
-
-if(matches[id].closed){
-
-matches[id][type]=val;
-saveMatches();
-
-}else{
-
-alert("Nejdřív zavři tipování");
-
-}
-
-}
-
-window.changeDate=function(id,val){
-
-matches[id].date=val;
-saveMatches();
-
-}
-
-window.toggle=function(id){
-
-matches[id].closed=!matches[id].closed;
-saveMatches();
-
-}
-
-window.setResult=function(id){
-
-if(!matches[id].closed){
-alert("Nejdřív zavři tipování");
-return;
-}
-
-let r=prompt("Výsledek (např 3:2)");
-
-matches[id].result=r;
-
-calculatePoints(id);
-
-saveMatches();
-savePoints();
-
-}
-
-function calculatePoints(id){
-
-let real=matches[id].result.split(":");
-
-let rh=parseInt(real[0]);
-let ra=parseInt(real[1]);
-
-for(let p in tips){
-
-let t=tips[p].tips?.[id];
-if(!t) continue;
-
-let tip=t.split(":");
-
-let th=parseInt(tip[0]);
-let ta=parseInt(tip[1]);
-
-if(th===rh && ta===ra){
-
-points[p]=(points[p]||0)+3;
-
-}else{
-
-let rw=rh>ra?"home":"away";
-let tw=th>ta?"home":"away";
-
-if(rw===tw){
-
-points[p]=(points[p]||0)+1;
-
-}
-
-}
-
-}
-
-}
-
-window.deleteMatch=function(id){
-
-matches.splice(id,1);
-saveMatches();
-
-}
-
-window.addMatch=function(){
-
-matches.push({
-home:"Tým 1",
-away:"Tým 2",
-date:"",
-result:"-",
-closed:false
-});
-
-saveMatches();
-
-}
-
-window.resetTips=function(){
-
-tips={};
-matches.forEach(m=>m.result="-");
-
-saveTips();
-
-}
-
-window.resetPoints=function(){
-
-points={};
-
-savePoints();
-
-}
-
-</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sportovní Tipovačka</title>
+    <style>
+        body{font-family:Arial, sans-serif;background:#0f172a;color:white;text-align:center;margin:0;padding:10px;}
+        h1{margin-top:10px; color: #3b82f6;}
+        .match{background:#1e293b;padding:20px;margin:15px auto;border-radius:12px;max-width:500px;border: 1px solid #334155;}
+        .match h2{margin:5px 0 10px 0;}
+        button{padding:12px 18px;border:none;border-radius:8px;background:#3b82f6;color:white;cursor:pointer;margin:5px;font-size:14px;transition: 0.3s;}
+        button:hover{background:#2563eb;}
+        button:disabled{background:#475569; cursor: not-allowed;}
+        .admin{background:#111827;padding:20px;margin-top:40px;display:none;border-radius:10px;max-width:700px;margin-left:auto;margin-right:auto;border: 2px dashed #ef4444;}
+        input{padding:8px;border-radius:6px;border:1px solid #334155;margin:5px;background: #1e293b; color: white;}
+        table{margin:20px auto;border-collapse:collapse;width:95%;max-width:900px;background: #1e293b;}
+        td,th{border:1px solid #334155;padding:10px;font-size:14px;}
+        th{background: #334155;}
+        .tableWrap{overflow-x:auto;}
+        @media (max-width:600px){
+            .match{padding:15px;}
+            button{width:90%;margin-top:8px;}
+            td,th{font-size:12px;padding:5px;}
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
 </head>
-
 <body>
 
-<h1>🏒 Tipovačka</h1>
+    <h1>🏒 Hokejová Tipovačka</h1>
+    <button onclick="login()">Admin přihlášení</button>
 
-<button onclick="login()">Admin přihlášení</button>
+    <div id="matches"></div>
 
-<div id="matches"></div>
+    <h2>Průběžná tabulka</h2>
+    <div class="tableWrap">
+        <table id="playersTable"></table>
+    </div>
 
-<h2>Tabulka hráčů</h2>
+    <div class="admin" id="adminPanel">
+        <h2>Admin panel</h2>
+        <button onclick="logout()" style="background:#ef4444">Odhlásit se</button>
+        <br><br>
+        <button onclick="addMatch()">+ Přidat nový zápas</button>
+        <button onclick="recalculateAllPoints()">🔄 Přepočítat všechny body</button>
+        <div id="adminMatches"></div>
+    </div>
 
-<div class="tableWrap">
-<table id="playersTable"></table>
-</div>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-<div class="admin" id="adminPanel">
+    // KONFIGURACE FIREBASE (Opravená URL na Europe)
+    const firebaseConfig = {
+        apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
+        authDomain: "tipovacka-fce0e.firebaseapp.com",
+        databaseURL: "https://tipovacka-fce0e-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "tipovacka-fce0e",
+        storageBucket: "tipovacka-fce0e.firebasestorage.app",
+        messagingSenderId: "165273430060",
+        appId: "1:165273430060:web:a6a6ba6952152855230989"
+    };
 
-<h2>Admin panel</h2>
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-<button onclick="logout()">Odhlásit admina</button>
+    // Hash pro heslo: Acsparta333
+    const ADMIN_HASH = "81561f7142750e322309ff0903337968";
 
-<br><br>
+    let matches = [];
+    let tips = {};
+    let points = {};
 
-<button onclick="resetTips()">Resetovat tipy</button>
-<button onclick="resetPoints()">Resetovat body</button>
-<button onclick="addMatch()">Přidat zápas</button>
+    let playerId = localStorage.getItem("playerId") || "player_" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("playerId", playerId);
+    let playerName = localStorage.getItem("playerName");
 
-<div id="adminMatches"></div>
+    // AUTH FUNKCE
+    window.login = function() {
+        let pass = prompt("Zadej admin heslo:");
+        if (window.md5(pass) === ADMIN_HASH) {
+            document.getElementById("adminPanel").style.display = "block";
+            window.scrollTo(0, document.body.scrollHeight);
+        } else {
+            alert("Špatné heslo!");
+        }
+    };
 
-</div>
+    window.logout = function() {
+        document.getElementById("adminPanel").style.display = "none";
+    };
 
+    // NACITANI DAT
+    onValue(ref(db, "/"), snap => {
+        const data = snap.val() || {};
+        matches = data.matches || [];
+        tips = data.tips || {};
+        points = data.points || {};
+        render();
+    });
+
+    // RENDER FUNKCE
+    function render() {
+        const mdiv = document.getElementById("matches");
+        mdiv.innerHTML = "";
+        
+        matches.forEach((m, i) => {
+            if(!m) return;
+            let div = document.createElement("div");
+            div.className = "match";
+            div.innerHTML = `
+                <h2>${m.home} vs ${m.away}</h2>
+                <p>📅 ${m.date ? m.date.replace("T", " ") : "Čas neurčen"}</p>
+                <button onclick="tip(${i})" ${m.closed ? "disabled" : ""}>
+                    ${m.closed ? "Tipování uzavřeno" : "Tipovat skóre"}
+                </button>
+                <p><strong>Výsledek: ${m.result || "- : -"}</strong></p>
+            `;
+            mdiv.appendChild(div);
+        });
+
+        renderTable();
+        renderAdmin();
+    }
+
+    function renderTable() {
+        let table = document.getElementById("playersTable");
+        let html = "<tr><th>Hráč</th><th>Body celkem</th>";
+        matches.forEach(m => { if(m) html += `<th>${m.home.substring(0,3)}-${m.away.substring(0,3)}</th>`; });
+        html += "</tr>";
+
+        for (let id in tips) {
+            html += `<tr><td><strong>${tips[id].name}</strong></td><td style="color:#fbbf24"><strong>${points[id] || 0} b.</strong></td>`;
+            matches.forEach((m, i) => {
+                if(!m) return;
+                let t = tips[id].tips?.[i] || "-";
+                html += `<td>${t}</td>`;
+            });
+            html += "</tr>";
+        }
+        table.innerHTML = html;
+    }
+
+    // TIPOVÁNÍ
+    window.tip = function(id) {
+        if (!playerName) {
+            playerName = prompt("Tvoje jméno (bude v tabulce):");
+            if (!playerName) return;
+            localStorage.setItem("playerName", playerName);
+        }
+        let score = prompt(`${matches[id].home} vs ${matches[id].away}\nZadej svůj tip (např. 3:2):`);
+        if (!score || !score.includes(":")) {
+            alert("Spatny format! Musi to byt napr. 3:2");
+            return;
+        }
+        
+        // Uložení tipu do Firebase
+        set(ref(db, `tips/${playerId}/name`), playerName);
+        set(ref(db, `tips/${playerId}/tips/${id}`), score);
+    };
+
+    // ADMIN FUNKCE
+    function renderAdmin() {
+        let div = document.getElementById("adminMatches");
+        div.innerHTML = "";
+        matches.forEach((m, i) => {
+            if(!m) return;
+            let d = document.createElement("div");
+            d.style.borderTop = "1px solid #475569";
+            d.style.padding = "10px";
+            d.innerHTML = `
+                <input value="${m.home}" onchange="updateMatch(${i}, 'home', this.value)"> vs 
+                <input value="${m.away}" onchange="updateMatch(${i}, 'away', this.value)">
+                <br>
+                <input type="datetime-local" value="${m.date || ""}" onchange="updateMatch(${i}, 'date', this.value)">
+                <br>
+                <button onclick="toggleMatch(${i})">${m.closed ? "🔓 Otevřít" : "🔒 Zavřít"}</button>
+                <button onclick="setResult(${i})" style="background:#10b981">Zadat výsledek</button>
+                <button onclick="deleteMatch(${i})" style="background:#991b1b">Smazat</button>
+            `;
+            div.appendChild(d);
+        });
+    }
+
+    window.updateMatch = function(id, field, val) {
+        set(ref(db, `matches/${id}/${field}`), val);
+    };
+
+    window.toggleMatch = function(id) {
+        set(ref(db, `matches/${id}/closed`), !matches[id].closed);
+    };
+
+    window.deleteMatch = function(id) {
+        if(confirm("Opravdu smazat zápas?")) {
+            matches.splice(id, 1);
+            set(ref(db, "matches"), matches);
+        }
+    };
+
+    window.addMatch = function() {
+        const newMatch = { home: "Domácí", away: "Hosté", date: "", result: "-", closed: false };
+        if(!matches) matches = [];
+        matches.push(newMatch);
+        set(ref(db, "matches"), matches);
+    };
+
+    window.setResult = function(id) {
+        let r = prompt("Konečný výsledek (např. 4:1):");
+        if(!r) return;
+        set(ref(db, `matches/${id}/result`), r);
+        set(ref(db, `matches/${id}/closed`), true);
+        recalculateAllPoints(); // Automaticky přepočítat
+    };
+
+    // LOGIKA BODOVÁNÍ (3b za přesný výsledek, 1b za vítěze)
+    window.recalculateAllPoints = function() {
+        let newPoints = {};
+        
+        for (let pId in tips) {
+            let total = 0;
+            const playerTips = tips[pId].tips || {};
+            
+            matches.forEach((m, i) => {
+                if (m && m.result && m.result !== "-" && playerTips[i]) {
+                    let [rh, ra] = m.result.split(":").map(Number);
+                    let [th, ta] = playerTips[i].split(":").map(Number);
+                    
+                    if (rh === th && ra === ta) {
+                        total += 3; // Přesný výsledek
+                    } else if ((rh > ra && th > ta) || (rh < ra && th < ta) || (rh === ra && th === ta)) {
+                        total += 1; // Jen vítěz / remíza
+                    }
+                }
+            });
+            newPoints[pId] = total;
+        }
+        set(ref(db, "points"), newPoints);
+        alert("Body byly přepočítány!");
+    };
+
+</script>
 </body>
 </html>
