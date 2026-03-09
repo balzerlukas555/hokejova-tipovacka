@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tipovačka</title>
+    <title>Tipovačka Pro</title>
     <style>
         body{font-family:Arial, sans-serif;background:#0f172a;color:white;text-align:center;margin:0;padding:10px;line-height:1.5;}
         h1{color: #3b82f6; margin: 10px 0 20px 0; font-size: 28px;}
         h2{font-size: 22px; margin-top: 30px;}
         
         .menu-bar { margin-bottom: 20px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
-
         #matches {display: flex; flex-direction: column; align-items: center; gap: 15px;}
         .match{background:#1e293b;padding:20px;border-radius:12px;width:100%;max-width:450px;border: 1px solid #334155; box-sizing: border-box;}
         .match-info { color: #94a3b8; font-size: 13px; margin-bottom: 2px; display: block; }
@@ -24,27 +23,25 @@
 
         .admin{background:#111827;padding:15px;display:none;border-radius:12px;max-width:600px;margin:30px auto;border:2px dashed #ef4444; box-sizing: border-box;}
         .admin-item{background:#1e293b; margin-bottom:12px; padding:15px; border-radius:8px; border:1px solid #444; display:flex; flex-direction: column; gap: 10px; align-items: center;}
-        .player-manage-item { background: #1e293b; padding: 10px; margin: 5px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 20px; border: 1px solid #334155;}
         
-        input{padding:12px;border-radius:8px;background:#0f172a;color:white;border:1px solid #475569; font-size: 16px; width: 100px;}
-        .input-wide { width: 220px; margin-top: 5px; }
-
         .tableWrap { width: 100%; max-width: 1000px; margin: 20px auto; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
         
+        /* Barvy pro tipy */
+        .tip-exact { background: #065f46 !important; color: #6ee7b7 !important; font-weight: bold; } /* 3 body - zelená */
+        .tip-tendency { background: #854d0e !important; color: #fde047 !important; } /* 1 bod - žlutá */
+        .my-row { border: 2px solid #3b82f6 !important; background: #1e294b !important; }
+
         @media (max-width: 600px) {
             thead { display: none; }
             tr { display: block; margin-bottom: 15px; border: 1px solid #334155; border-radius: 10px; padding: 10px; background: #1e293b; }
             td { display: flex; justify-content: space-between; padding: 8px 5px; border: none; border-bottom: 1px solid #2d3748; text-align: right; }
-            td:last-child { border-bottom: none; }
             td::before { content: attr(data-label); font-weight: bold; text-align: left; color: #94a3b8; }
         }
-
         @media (min-width: 601px) {
             td, th { border: 1px solid #334155; padding: 12px; text-align: center; }
             th { background: #334155; color: #94a3b8; font-size: 11px; }
         }
-        .winner-cell { color: #fbbf24; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -70,19 +67,10 @@
             <button onclick="window.addMatch()" style="background:#059669">Přidat zápas</button>
             <button onclick="window.recalcPoints()" style="background:#8b5cf6">Přepočítat body</button>
         </div>
-        
         <div style="margin-top:20px;">
             <button onclick="window.clearAllTips()" class="danger">Smazat VŠE (Tipy + Zápasy)</button>
-            <button onclick="window.clearAllPoints()" class="danger">Vynulovat VŠE (Body)</button>
         </div>
-
-        <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
-        <h3>Správa hráčů</h3>
-        <div id="adminPlayers"></div>
-
-        <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
-        <h3>Správa zápasů</h3>
-        <div id="adminMatches"></div>
+        <div id="adminMatches" style="margin-top:20px;"></div>
     </div>
 
 <script type="module">
@@ -101,64 +89,47 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-
     const ADMIN_HESLO = "Acsparta333";
     let matches = [], tips = {}, points = {}, pId = localStorage.getItem("pId") || "p"+Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
-    // EXPORT FUNKCÍ PRO PŘÍSTUP Z HTML (OPRAVA ReferenceError: set is not defined)
+    // POMOCNÁ FUNKCE: Kontrola času pro auto-zámek
+    const isLocked = (m) => {
+        if (m.closed) return true;
+        if (!m.date || !m.date.includes(".")) return false;
+        try {
+            const [datePart, timePart] = m.date.split(" ");
+            const [day, month] = datePart.split(".").map(Number);
+            const [hour, min] = timePart.split(":").map(Number);
+            const matchDate = new Date(new Date().getFullYear(), month - 1, day, hour, min);
+            return new Date() > matchDate;
+        } catch(e) { return false; }
+    };
+
+    // EXPORTY PRO HTML
     window.changeName = () => {
-        let oldName = localStorage.getItem("pName") || "";
-        let n = prompt("Zadej nové jméno:", oldName);
-        if (n && n.trim() !== "") {
-            localStorage.setItem("pName", n.trim());
-            set(ref(db, `tips/${pId}/name`), n.trim());
-        }
+        let n = prompt("Zadej jméno:", localStorage.getItem("pName") || "");
+        if (n) { localStorage.setItem("pName", n.trim()); set(ref(db, `tips/${pId}/name`), n.trim()); }
     };
 
-    window.adminLogin = () => {
-        let p = prompt("Zadej heslo:");
-        if (p === ADMIN_HESLO) {
-            document.getElementById("adminPanel").style.display = "block";
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        }
-    };
-
-    window.addMatch = () => {
-        const i = matches.length;
-        set(ref(db, `matches/${i}`), {home:"Domácí", away:"Hosté", date:"", desc:"", closed:false, result:"-"});
-    };
-
+    window.adminLogin = () => { if (prompt("Heslo:") === ADMIN_HESLO) document.getElementById("adminPanel").style.display = "block"; };
+    
+    window.addMatch = () => set(ref(db, `matches/${matches.length}`), {home:"Domácí", away:"Hosté", date:"", desc:"", closed:false, result:"-"});
+    
     window.updateMatchData = (i, field, val) => update(ref(db, `matches/${i}`), {[field]: val});
-    window.toggleMatch = (i, state) => update(ref(db, `matches/${i}`), {closed: state});
     
     window.setRes = (i) => {
         let r = prompt("Výsledek (např. 3:1):");
         if(r) { update(ref(db, `matches/${i}`), {result: r, closed: true}); window.recalcPoints(); }
     };
 
-    window.delMatch = (i) => { if(confirm("Smazat tento zápas?")) remove(ref(db, `matches/${i}`)); };
-    
-    // OPRAVA: Tlačítko nyní maže tipy i zápasy najednou
-    window.clearAllTips = () => { 
-        if(confirm("Opravdu chceš smazat VŠECHNY tipy i VŠECHNY vytvořené zápasy?")) {
-            remove(ref(db, "tips")); 
-            remove(ref(db, "matches"));
-        } 
-    };
-
-    window.clearAllPoints = () => { if(confirm("Vynulovat body všem hráčům?")) remove(ref(db, "points")); };
-    
-    window.deletePlayer = (id, name) => { if(confirm(`Smazat hráče ${name}?`)) { remove(ref(db, `tips/${id}`)); remove(ref(db, `points/${id}`)); } };
+    window.clearAllTips = () => { if(confirm("Smazat vše?")) { remove(ref(db, "tips")); remove(ref(db, "matches")); } };
 
     window.sendTip = (i) => {
-        let n = localStorage.getItem("pName");
-        if(!n) { n = prompt("Tvoje jméno:"); if(!n) return; localStorage.setItem("pName", n); }
+        let n = localStorage.getItem("pName") || prompt("Jméno:");
+        if(!n) return; localStorage.setItem("pName", n);
         let t = prompt("Tvůj tip (např. 2:1):", tips[pId]?.tips?.[i] || "");
-        if(t && t.includes(":")) {
-            set(ref(db, `tips/${pId}/name`), n);
-            set(ref(db, `tips/${pId}/tips/${i}`), t);
-        }
+        if(t && t.includes(":")) { set(ref(db, `tips/${pId}/name`), n); set(ref(db, `tips/${pId}/tips/${i}`), t); }
     };
 
     window.recalcPoints = () => {
@@ -166,9 +137,8 @@
         Object.keys(tips).forEach(id => {
             let total = 0;
             matches.forEach((m, i) => {
-                if(m?.result && m.result !== "-" && tips[id].tips?.[i]) {
-                    let [rh, ra] = m.result.split(":").map(Number);
-                    let [th, ta] = tips[id].tips[i].split(":").map(Number);
+                if(m?.result?.includes(":") && tips[id].tips?.[i]) {
+                    let [rh, ra] = m.result.split(":").map(Number), [th, ta] = tips[id].tips[i].split(":").map(Number);
                     if(rh === th && ra === ta) total += 3;
                     else if((rh > ra && th > ta) || (rh < ra && th < ta) || (rh === ra && th === ta)) total += 1;
                 }
@@ -180,68 +150,56 @@
 
     onValue(ref(db, "/"), snap => {
         const d = snap.val() || {};
-        // OPRAVA: Ošetření, aby matches byl vždy pole pro forEach
         matches = d.matches ? (Array.isArray(d.matches) ? d.matches : Object.values(d.matches)) : [];
-        tips = d.tips || {};
-        points = d.points || {};
+        tips = d.tips || {}; points = d.points || {};
         
-        const div = document.getElementById("matches");
-        div.innerHTML = matches.length ? "" : "Zatím nejsou vypsány žádné zápasy.";
+        // Zápasy
+        const mDiv = document.getElementById("matches");
+        mDiv.innerHTML = "";
         matches.forEach((m, i) => {
             if(!m) return;
-            div.innerHTML += `
-                <div class="match">
-                    <span class="match-info">${m.desc || ""}</span>
-                    <span class="match-date">${m.date || "Termín neurčen"}</span>
-                    <h2>${m.home} - ${m.away}</h2>
-                    <p>Výsledek: <b>${m.result || "-:-"}</b></p>
-                    <button onclick="window.sendTip(${i})" ${m.closed ? 'disabled' : ''}>
-                        ${m.closed ? 'Zavřeno' : (tips[pId]?.tips?.[i] ? 'Upravit tip' : 'Tipovat')}
-                    </button>
-                </div>`;
+            const locked = isLocked(m);
+            mDiv.innerHTML += `<div class="match">
+                <span class="match-info">${m.desc || ""}</span>
+                <span class="match-date">${locked ? "🔒 ZÁPAS ZAČAL" : (m.date || "Termín neurčen")}</span>
+                <h2>${m.home} - ${m.away}</h2>
+                <p>Výsledek: <b>${m.result || "-:-"}</b></p>
+                <button onclick="window.sendTip(${i})" ${locked ? 'disabled' : ''}>${locked ? 'Zavřeno' : 'Tipovat'}</button>
+            </div>`;
         });
 
+        // Tabulka
         let table = document.getElementById("playersTable");
-        let head = "<thead><tr><th>Hráč</th><th>Body</th>";
-        matches.forEach((m, i) => { 
-            if(m) {
-                let dStr = m.date ? m.date.split(' ')[0] : "";
-                head += `<th>Z${i+1}<br><small>${dStr}</small></th>`; 
-            }
-        });
-        head += "</tr></thead><tbody>";
-
-        let sortedIds = Object.keys(tips).sort((a,b)=>(points[b]||0)-(points[a]||0));
-        sortedIds.forEach(id => {
-            head += `<tr><td data-label="Hráč"><b>${tips[id].name || "IDK"}</b></td><td data-label="Body" class="winner-cell">${points[id]||0}</td>`;
+        let html = "<thead><tr><th>Hráč</th><th>Body</th>" + matches.map((m,i)=>m?`<th>Z${i+1}</th>`:'').join('') + "</tr></thead><tbody>";
+        
+        Object.keys(tips).sort((a,b)=>(points[b]||0)-(points[a]||0)).forEach(id => {
+            html += `<tr class="${id === pId ? 'my-row' : ''}"><td data-label="Hráč"><b>${tips[id].name || "IDK"}</b></td><td data-label="Body"><b>${points[id]||0}</b></td>`;
             matches.forEach((m, i) => {
-                if(m) head += `<td data-label="Z${i+1}">${(tips[id].tips && tips[id].tips[i]) ? tips[id].tips[i] : "-"}</td>`;
+                if(!m) return;
+                let t = tips[id].tips?.[i] || "-";
+                let cls = "";
+                if(m.result?.includes(":") && t !== "-") {
+                    let [rh, ra] = m.result.split(":").map(Number), [th, ta] = t.split(":").map(Number);
+                    if(rh===th && ra===ta) cls = "tip-exact";
+                    else if((rh>ra && th>ta) || (rh<ra && th<ta) || (rh===ra && th===ta)) cls = "tip-tendency";
+                }
+                html += `<td data-label="Z${i+1}" class="${cls}">${t}</td>`;
             });
-            head += "</tr>";
+            html += "</tr>";
         });
-        table.innerHTML = head + "</tbody>";
+        table.innerHTML = html + "</tbody>";
 
-        const pAdmin = document.getElementById("adminPlayers");
-        pAdmin.innerHTML = "";
-        sortedIds.forEach(id => {
-            pAdmin.innerHTML += `<div class="player-manage-item"><span><b>${tips[id].name || "IDK"}</b></span><button onclick="window.deletePlayer('${id}', '${tips[id].name || 'IDK'}')" class="danger">Smazat</button></div>`;
-        });
-
+        // Admin
         const ad = document.getElementById("adminMatches");
         ad.innerHTML = "";
         matches.forEach((m, i) => {
             if(!m) return;
-            ad.innerHTML += `
-                <div class="admin-item">
-                    <input class="input-wide" placeholder="Popis" onchange="window.updateMatchData(${i},'desc',this.value)" value="${m.desc || ''}">
-                    <input class="input-wide" placeholder="Datum" onchange="window.updateMatchData(${i},'date',this.value)" value="${m.date || ''}">
-                    <div style="display:flex; gap:5px;"><input oninput="window.updateMatchData(${i},'home',this.value)" value="${m.home}"><input oninput="window.updateMatchData(${i},'away',this.value)" value="${m.away}"></div>
-                    <div style="display:flex; gap:5px; margin-top:5px;">
-                        <button onclick="window.setRes(${i})" style="background:#10b981">Výsledek</button>
-                        <button onclick="window.toggleMatch(${i}, ${!m.closed})" style="background:#6366f1">${m.closed ? 'Otevřít' : 'Zavřít'}</button>
-                        <button onclick="window.delMatch(${i})" class="danger">Smazat</button>
-                    </div>
-                </div>`;
+            ad.innerHTML += `<div class="admin-item">
+                <input class="input-wide" onchange="window.updateMatchData(${i},'desc',this.value)" value="${m.desc||''}" placeholder="Popis">
+                <input class="input-wide" onchange="window.updateMatchData(${i},'date',this.value)" value="${m.date||''}" placeholder="10.03. 18:00">
+                <div><input oninput="window.updateMatchData(${i},'home',this.value)" value="${m.home}"> <input oninput="window.updateMatchData(${i},'away',this.value)" value="${m.away}"></div>
+                <button onclick="window.setRes(${i})" style="background:#10b981">Výsledek</button>
+            </div>`;
         });
     });
 </script>
