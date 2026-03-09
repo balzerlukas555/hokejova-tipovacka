@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<title>Sportovní Tipovačka Online</title>
+<title>Sportovní Tipovačka</title>
 
 <style>
 body{
@@ -11,12 +11,14 @@ background:#0f172a;
 color:white;
 text-align:center;
 }
+
 .match{
 background:#1e293b;
 padding:20px;
 margin:20px;
 border-radius:10px;
 }
+
 button{
 padding:10px 20px;
 border:none;
@@ -26,201 +28,408 @@ color:white;
 cursor:pointer;
 margin:5px;
 }
+
 .admin{
 background:#111827;
 padding:20px;
 margin-top:40px;
 display:none;
 }
+
 table{
 margin:auto;
 border-collapse:collapse;
 }
+
 td,th{
 border:1px solid gray;
 padding:6px 10px;
 }
 </style>
 
-<!-- Firebase SDKs -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js";
-  import { getDatabase, ref, set, get, child, update, onValue, remove } from "https://www.gstatic.com/firebasejs/10.1.0/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
-    authDomain: "tipovacka-fce0e.firebaseapp.com",
-    projectId: "tipovacka-fce0e",
-    storageBucket: "tipovacka-fce0e.firebasestorage.app",
-    messagingSenderId: "165273430060",
-    appId: "1:165273430060:web:a6a6ba6952152855230989",
-    measurementId: "G-52C1SCWYTX"
-  };
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+const firebaseConfig = {
+apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
+authDomain: "tipovacka-fce0e.firebaseapp.com",
+databaseURL: "https://tipovacka-fce0e-default-rtdb.firebaseio.com",
+projectId: "tipovacka-fce0e",
+storageBucket: "tipovacka-fce0e.firebasestorage.app",
+messagingSenderId: "165273430060",
+appId: "1:165273430060:web:a6a6ba6952152855230989"
+};
 
-  const ADMIN_PASSWORD="Acsparta333";
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-  let matches = [];
-  let tips = {};
-  let points = {};
+const ADMIN_PASSWORD="Acsparta333";
 
-  // --- ADMIN LOGIN ---
-  window.login = async function(){
-    let pass = prompt("Zadej admin heslo");
-    if(pass===ADMIN_PASSWORD){
-      document.getElementById("adminPanel").style.display="block";
-    } else alert("Špatné heslo");
-  }
+let matches=[];
+let tips={};
+let points={};
 
-  // --- FETCH DATA ---
-  async function fetchData(){
-    const dbRef = ref(db);
-    let snap = await get(child(dbRef,'matches'));
-    matches = snap.exists() ? snap.val() : [];
-    snap = await get(child(dbRef,'tips'));
-    tips = snap.exists() ? snap.val() : {};
-    snap = await get(child(dbRef,'points'));
-    points = snap.exists() ? snap.val() : {};
-    render();
-  }
+let playerId = localStorage.getItem("playerId");
+if(!playerId){
+playerId = "player_"+Math.random().toString(36).substr(2,9);
+localStorage.setItem("playerId",playerId);
+}
 
-  // --- SAVE DATA ---
-  function saveMatches(){ set(ref(db,'matches'),matches); }
-  function saveTips(){ set(ref(db,'tips'),tips); }
-  function savePoints(){ set(ref(db,'points'),points); }
+let playerName = localStorage.getItem("playerName");
 
-  // --- RENDER MATCHES ---
-  function render(){
-    let mdiv=document.getElementById("matches");
-    mdiv.innerHTML="";
-    matches.forEach((m,i)=>{
-      let div=document.createElement("div");
-      div.className="match";
-      div.innerHTML=`
-        <h2>${m.home} vs ${m.away}</h2>
-        <p>${m.date||""}</p>
-        <button onclick="tip(${i})" ${m.closed?"disabled":""}>Tipovat skóre</button>
-        <p>Výsledek: ${m.result||"-"}</p>
-      `;
-      mdiv.appendChild(div);
-    });
-    renderAdmin();
-    renderTable();
-  }
+window.login=function(){
 
-  // --- TIP ---
-  window.tip = async function(id){
-    let name = prompt("Tvoje jméno"); if(!name) return;
-    let score = prompt("Zadej skóre (např 3:2)"); if(!score) return;
-    if(!tips[name]) tips[name]={};
-    tips[name][id]=score;
-    saveTips();
-    render();
-  }
+let pass=prompt("Admin heslo");
 
-  // --- TABLE ---
-  function renderTable(){
-    let table=document.getElementById("playersTable");
-    let html="<tr><th>Hráč</th><th>Body</th>";
-    matches.forEach((m,i)=>{ html+=`<th>${m.home}-${m.away}</th>`; });
-    html+="</tr>";
-    for(let p in tips){
-      html+=`<tr><td>${p}</td><td>${points[p]||0}</td>`;
-      matches.forEach((m,i)=>{
-        let t=tips[p][i]||"-";
-        html+=`<td>${t}</td>`;
-      });
-      html+="</tr>";
-    }
-    table.innerHTML=html;
-  }
+if(pass===ADMIN_PASSWORD){
 
-  // --- ADMIN PANEL ---
-  function renderAdmin(){
-    let div=document.getElementById("adminMatches");
-    div.innerHTML="";
-    matches.forEach((m,i)=>{
-      let d=document.createElement("div");
-      d.innerHTML=`
-        <hr>
-        <input value="${m.home}" onchange="changeTeam(${i},this.value,'home')">
-        <input value="${m.away}" onchange="changeTeam(${i},this.value,'away')"><br><br>
-        <input type="datetime-local" value="${m.date||""}" onchange="changeDate(${i},this.value)"><br><br>
-        <button onclick="toggle(${i})">${m.closed?"Otevřít tipování":"Zavřít tipování"}</button>
-        <button onclick="setResult(${i})">Uložit výsledek</button>
-        <button onclick="deleteMatch(${i})">Smazat zápas</button>
-      `;
-      div.appendChild(d);
-    });
-  }
+document.getElementById("adminPanel").style.display="block";
 
-  window.changeTeam = function(id,val,type){
-    if(matches[id].closed){
-      matches[id][type]=val; saveMatches(); render();
-    }else{ alert("Nejdřív zavři tipování!"); }
-  }
+}else alert("Špatné heslo");
 
-  window.changeDate = function(id,val){
-    matches[id].date=val; saveMatches(); render();
-  }
+}
 
-  window.toggle = function(id){
-    matches[id].closed=!matches[id].closed; saveMatches(); render();
-  }
+window.logout=function(){
 
-  window.setResult = function(id){
-    if(!matches[id].closed){ alert("Nejdřív zavři tipování!"); return; }
-    let r = prompt("Výsledek (např 3:2)");
-    matches[id].result=r;
-    calculatePoints(id);
-    saveMatches(); savePoints();
-    render();
-  }
+document.getElementById("adminPanel").style.display="none";
 
-  function calculatePoints(id){
-    let real = matches[id].result.split(":");
-    let realHome=parseInt(real[0]), realAway=parseInt(real[1]);
-    for(let p in tips){
-      let t=tips[p][id]; if(!t) continue;
-      let tip=t.split(":"); let tipHome=parseInt(tip[0]), tipAway=parseInt(tip[1]);
-      if(tipHome===realHome && tipAway===realAway){
-        points[p]=(points[p]||0)+3;
-      }else{
-        let realWinner = realHome>realAway?"home":"away";
-        let tipWinner = tipHome>tipAway?"home":"away";
-        if(realWinner===tipWinner){ points[p]=(points[p]||0)+1; }
-      }
-    }
-  }
+}
 
-  window.deleteMatch = function(id){ if(confirm("Opravdu smazat zápas?")){ matches.splice(id,1); saveMatches(); render(); } }
-  window.addMatch = function(){ matches.push({home:"Tým 1",away:"Tým 2",date:"",result:"-",closed:false}); saveMatches(); render(); }
-  window.resetTips = function(){ tips={}; matches.forEach(m=>m.result="-"); saveTips(); render(); }
-  window.resetPoints = function(){ points={}; savePoints(); render(); }
+onValue(ref(db,"matches"),snap=>{
+matches=snap.val()||[];
+render();
+})
 
-  // --- INITIAL FETCH ---
-  fetchData();
+onValue(ref(db,"tips"),snap=>{
+tips=snap.val()||{};
+render();
+})
+
+onValue(ref(db,"points"),snap=>{
+points=snap.val()||{};
+render();
+})
+
+function saveMatches(){
+
+set(ref(db,"matches"),matches);
+
+}
+
+function saveTips(){
+
+set(ref(db,"tips"),tips);
+
+}
+
+function savePoints(){
+
+set(ref(db,"points"),points);
+
+}
+
+function render(){
+
+let mdiv=document.getElementById("matches");
+
+if(!mdiv) return;
+
+mdiv.innerHTML="";
+
+matches.forEach((m,i)=>{
+
+let div=document.createElement("div");
+
+div.className="match";
+
+div.innerHTML=`
+
+<h2>${m.home} vs ${m.away}</h2>
+
+<p>${m.date||""}</p>
+
+<button onclick="tip(${i})" ${m.closed?"disabled":""}>Tipovat skóre</button>
+
+<p>Výsledek: ${m.result||"-"}</p>
+
+`;
+
+mdiv.appendChild(div);
+
+});
+
+renderTable();
+renderAdmin();
+
+}
+
+window.tip=function(id){
+
+if(!playerName){
+
+playerName=prompt("Tvoje jméno");
+
+localStorage.setItem("playerName",playerName);
+
+}
+
+let score=prompt("Zadej skóre (např 3:2)");
+
+if(!score) return;
+
+if(!tips[playerId]) tips[playerId]={name:playerName,tips:{}};
+
+tips[playerId].tips[id]=score;
+
+saveTips();
+
+}
+
+function renderTable(){
+
+let table=document.getElementById("playersTable");
+
+let html="<tr><th>Hráč</th><th>Body</th>";
+
+matches.forEach(m=>{
+
+html+=`<th>${m.home}-${m.away}</th>`;
+
+});
+
+html+="</tr>";
+
+for(let id in tips){
+
+html+=`<tr>
+
+<td>${tips[id].name}</td>
+
+<td>${points[id]||0}</td>`;
+
+matches.forEach((m,i)=>{
+
+let t=tips[id].tips?.[i]||"-";
+
+html+=`<td>${t}</td>`;
+
+});
+
+html+="</tr>";
+
+}
+
+table.innerHTML=html;
+
+}
+
+function renderAdmin(){
+
+let div=document.getElementById("adminMatches");
+
+if(!div) return;
+
+div.innerHTML="";
+
+matches.forEach((m,i)=>{
+
+let d=document.createElement("div");
+
+d.innerHTML=`
+
+<hr>
+
+<input value="${m.home}" onchange="changeTeam(${i},this.value,'home')">
+
+<input value="${m.away}" onchange="changeTeam(${i},this.value,'away')">
+
+<br><br>
+
+<input type="datetime-local" value="${m.date||""}" onchange="changeDate(${i},this.value)">
+
+<br><br>
+
+<button onclick="toggle(${i})">
+
+${m.closed?"Otevřít tipování":"Zavřít tipování"}
+
+</button>
+
+<button onclick="setResult(${i})">Uložit výsledek</button>
+
+<button onclick="deleteMatch(${i})">Smazat zápas</button>
+
+`;
+
+div.appendChild(d);
+
+});
+
+}
+
+window.changeTeam=function(id,val,type){
+
+if(matches[id].closed){
+
+matches[id][type]=val;
+
+saveMatches();
+
+}else alert("Nejdřív zavři tipování");
+
+}
+
+window.changeDate=function(id,val){
+
+matches[id].date=val;
+
+saveMatches();
+
+}
+
+window.toggle=function(id){
+
+matches[id].closed=!matches[id].closed;
+
+saveMatches();
+
+}
+
+window.setResult=function(id){
+
+if(!matches[id].closed){
+
+alert("Nejdřív zavři tipování");
+
+return;
+
+}
+
+let r=prompt("Výsledek (např 3:2)");
+
+matches[id].result=r;
+
+calculatePoints(id);
+
+saveMatches();
+savePoints();
+
+}
+
+function calculatePoints(id){
+
+let real=matches[id].result.split(":");
+
+let rh=parseInt(real[0]);
+let ra=parseInt(real[1]);
+
+for(let p in tips){
+
+let t=tips[p].tips?.[id];
+
+if(!t) continue;
+
+let tip=t.split(":");
+
+let th=parseInt(tip[0]);
+let ta=parseInt(tip[1]);
+
+if(th===rh && ta===ra){
+
+points[p]=(points[p]||0)+3;
+
+}else{
+
+let rw=rh>ra?"home":"away";
+let tw=th>ta?"home":"away";
+
+if(rw===tw){
+
+points[p]=(points[p]||0)+1;
+
+}
+
+}
+
+}
+
+}
+
+window.deleteMatch=function(id){
+
+matches.splice(id,1);
+
+saveMatches();
+
+}
+
+window.addMatch=function(){
+
+matches.push({
+
+home:"Tým 1",
+away:"Tým 2",
+date:"",
+result:"-",
+closed:false
+
+});
+
+saveMatches();
+
+}
+
+window.resetTips=function(){
+
+tips={};
+
+matches.forEach(m=>m.result="-");
+
+saveTips();
+
+}
+
+window.resetPoints=function(){
+
+points={};
+
+savePoints();
+
+}
 
 </script>
 </head>
 
 <body>
 
-<h1>🏒 Tipovačka Online</h1>
+<h1>🏒 Tipovačka</h1>
+
 <button onclick="login()">Admin přihlášení</button>
+
 <div id="matches"></div>
 
 <h2>Tabulka hráčů</h2>
+
 <table id="playersTable"></table>
 
 <div class="admin" id="adminPanel">
+
 <h2>Admin panel</h2>
+
+<button onclick="logout()">Odhlásit admina</button>
+
+<br><br>
+
 <button onclick="resetTips()">Resetovat tipy</button>
+
 <button onclick="resetPoints()">Resetovat body</button>
+
 <button onclick="addMatch()">Přidat zápas</button>
+
 <div id="adminMatches"></div>
+
 </div>
 
 </body>
