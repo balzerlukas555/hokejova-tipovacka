@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tipovačka</title>
+    <title>Tipovačka Pro</title>
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/5358/5358643.png">
     <style>
         body{font-family:Arial, sans-serif;background:#0f172a;color:white;text-align:center;margin:0;padding:10px;line-height:1.5;}
         h1{color: #3b82f6; margin: 10px 0 20px 0; font-size: 28px;}
@@ -20,6 +21,11 @@
         .danger{background:#991b1b !important;}
         .admin{background:#111827;padding:15px;display:none;border-radius:12px;max-width:600px;margin:30px auto;border:2px dashed #ef4444; box-sizing: border-box;}
         .admin-item{background:#1e293b; margin-bottom:12px; padding:15px; border-radius:8px; border:1px solid #444; display:flex; flex-direction: column; gap: 10px; align-items: center;}
+        
+        /* NÁVOD NA INSTALACI */
+        #installGuide { display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#3b82f6; color:white; padding:15px; border-radius:15px; width:90%; max-width:400px; z-index:2000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .guide-close { position:absolute; top:5px; right:10px; font-weight:bold; cursor:pointer; }
+
         .player-manage-item { background: #1e293b; padding: 15px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .tableWrap { width: 100%; max-width: 1000px; margin: 20px auto; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
@@ -34,15 +40,17 @@
             tr { display: block; margin-bottom: 15px; border: 1px solid #334155; border-radius: 10px; padding: 10px; background: #1e293b; }
             td { display: flex; justify-content: space-between; padding: 8px 5px; border: none; border-bottom: 1px solid #2d3748; text-align: right; }
             td::before { content: attr(data-label); font-weight: bold; text-align: left; color: #94a3b8; }
-            .player-manage-item { flex-direction: column; text-align: center; }
-        }
-        @media (min-width: 601px) {
-            td, th { border: 1px solid #334155; padding: 12px; text-align: center; }
-            th { background: #334155; color: #94a3b8; font-size: 11px; }
         }
     </style>
 </head>
 <body>
+
+    <div id="installGuide">
+        <span class="guide-close" onclick="this.parentElement.style.display='none'">×</span>
+        <strong>Měj Tipovačku jako aplikaci!</strong><br>
+        <small>iPhone: Klikni na <img src="https://img.icons8.com/ios/20/ffffff/share.png" style="vertical-align:middle"> a "Přidat na plochu".</small><br>
+        <small>Android: Klikni na tři tečky a "Instalovat aplikaci".</small>
+    </div>
 
     <h1>Tipovačka</h1>
     
@@ -100,6 +108,13 @@
     let matches = [], tips = {}, points = {}, pId = localStorage.getItem("pId") || "p"+Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
+    // ZOBRAZENÍ NÁVODU NA PLOCHU JEN NA MOBILU
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.matchMedia('(display-mode: standalone)').matches) {
+        if (!localStorage.getItem("guideHidden")) {
+            document.getElementById("installGuide").style.display = "block";
+        }
+    }
+
     const isLocked = (m) => {
         if (m.closed) return true;
         if (!m.date || !m.date.includes(".")) return false;
@@ -118,6 +133,7 @@
     };
 
     window.adminLogin = () => { if (prompt("Heslo:") === ADMIN_HESLO) document.getElementById("adminPanel").style.display = "block"; };
+    
     window.addMatch = () => set(ref(db, `matches/${matches.length}`), {home:"Domácí", away:"Hosté", date:"", desc:"", closed:false, result:"-"});
     window.updateMatchData = (i, field, val) => update(ref(db, `matches/${i}`), {[field]: val});
     window.toggleMatch = (i, state) => update(ref(db, `matches/${i}`), {closed: state});
@@ -168,7 +184,7 @@
         matches.forEach((m, i) => {
             if(!m) return;
             const locked = isLocked(m);
-            const userHasTip = tips[pId]?.tips?.[i]; // Kontrola, zda uživatel už tipoval
+            const userHasTip = tips[pId]?.tips?.[i];
             mDiv.innerHTML += `<div class="match">
                 <span class="match-info">${m.desc || ""}</span>
                 <span class="match-date">${locked ? "🔒 ZÁPAS ZAČAL" : (m.date || "Termín neurčen")}</span>
