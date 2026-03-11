@@ -7,23 +7,18 @@
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/4242/4242098.png" type="image/png">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4242/4242098.png">
     <style>
-        /* INTRO ANIMACE */
         #intro {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #0f172a; display: flex; align-items: center; justify-content: center;
             z-index: 9999; transition: opacity 0.8s ease-out, visibility 0.8s;
         }
         #intro.hidden { opacity: 0; visibility: hidden; }
-        
-        /* LOGO S HOKEJKAMI - ÚPRAVA VIDITELNOSTI POMOCÍ STÍNŮ */
         .logo-main { 
             width: 120px; 
             filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.6)) brightness(1.2);
             object-fit: contain;
         }
-
         #intro img { animation: pulse 1.5s ease-in-out forwards; }
-        
         @keyframes pulse {
             0% { transform: scale(0.5); opacity: 0; }
             50% { transform: scale(1.1); opacity: 1; }
@@ -52,7 +47,8 @@
         
         .admin { background: #111827; padding: 15px; display: none; border-radius: 12px; max-width: 650px; margin: 30px auto; border: 2px dashed #ef4444; box-sizing: border-box; }
         .admin-item { background: #1e293b; margin-bottom: 12px; padding: 15px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        
+        .player-manage-item { background: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border: 1px solid #334155; }
+
         .tableWrap { width: 100%; max-width: 1000px; margin: 20px auto; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
         .tip-exact { background: #065f46 !important; color: #6ee7b7 !important; font-weight: bold; }
@@ -98,12 +94,10 @@
         <div style="display:flex; justify-content:center; gap:5px; flex-wrap:wrap;">
             <button onclick="document.getElementById('adminPanel').style.display='none'" style="background:#475569">Zavřít</button>
             <button onclick="window.addMatch()" style="background:#059669">Přidat zápas</button>
-            <button onclick="window.recalcPoints()" style="background:#8b5cf6">Přepočítat body</button>
         </div>
         
         <div style="margin-top:20px; display:flex; justify-content:center; gap:10px;">
             <button onclick="window.clearAllTips()" class="danger">Smazat vše (Tipy + Zápasy)</button>
-            <button onclick="window.clearAllPoints()" class="danger">Vynulovat vše (Body)</button>
         </div>
 
         <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
@@ -162,6 +156,7 @@
     window.toggleMatch = (i, state) => update(ref(db, `matches/${i}`), {closed: state});
     window.delMatch = (i) => { if(confirm("Smazat tento zápas?")) remove(ref(db, `matches/${i}`)); };
     
+    // FUNKCE PRO SPRÁVU HRÁČŮ
     window.addExtraPoints = async (id, name) => {
         let val = prompt(`Kolik bodů chceš hráči ${name} přičíst?`);
         if(val !== null && !isNaN(val)) {
@@ -170,16 +165,49 @@
         }
     };
 
+    window.clearPlayerPoints = (id, name) => {
+        if(confirm(`Opravdu chceš vynulovat body hráči ${name}?`)) {
+            set(ref(db, `points/${id}`), 0);
+        }
+    };
+
+    window.deletePlayerTips = (id, name) => {
+        if(confirm(`Opravdu chceš smazat všechny tipy hráči ${name}?`)) {
+            remove(ref(db, `tips/${id}/tips`));
+        }
+    };
+
+    window.fullDeletePlayer = (id, name) => {
+        if(confirm(`VAROVÁNÍ: Opravdu chceš úplně smazat hráče ${name}?`)) {
+            remove(ref(db, `tips/${id}`));
+            remove(ref(db, `points/${id}`));
+        }
+    };
+
+    window.clearAllTips = () => {
+        if(confirm("POZOR: Smaže to všechny zápasy i tipy všech hráčů! Pokračovat?")) {
+            remove(ref(db, "matches"));
+            remove(ref(db, "tips"));
+            remove(ref(db, "points"));
+        }
+    };
+
     window.setRes = (i) => {
         let r = prompt("Konečný výsledek (např. 3:1):");
-        if(r) { update(ref(db, `matches/${i}`), {result: r, live: "", closed: true}); window.recalcPoints(); }
+        if(r) { 
+            update(ref(db, `matches/${i}`), {result: r, live: "", closed: true}); 
+            setTimeout(() => window.recalcPoints(), 500); 
+        }
     };
 
     window.sendTip = (i) => {
         let n = localStorage.getItem("pName") || prompt("Jméno:");
         if(!n) return; localStorage.setItem("pName", n);
         let t = prompt("Tvůj tip (např. 2:1):", tips[pId]?.tips?.[i] || "");
-        if(t && t.includes(":")) { set(ref(db, `tips/${pId}/name`), n); set(ref(db, `tips/${pId}/tips/${i}`), t); }
+        if(t && t.includes(":")) { 
+            set(ref(db, `tips/${pId}/name`), n); 
+            set(ref(db, `tips/${pId}/tips/${i}`), t); 
+        }
     };
 
     window.recalcPoints = () => {
@@ -249,6 +277,7 @@
                 <span><b>${name}</b> (${points[id]||0} b.)</span>
                 <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content: flex-end;">
                     <button onclick="window.addExtraPoints('${id}', '${name}')" style="background:#0ea5e9; padding:5px 10px; font-size:11px;">Přidat body</button>
+                    <button onclick="window.clearPlayerPoints('${id}', '${name}')" style="background:#f59e0b; padding:5px 10px; font-size:11px;">Smazat body</button>
                     <button onclick="window.deletePlayerTips('${id}', '${name}')" class="danger" style="padding:5px 10px; font-size:11px;">Smazat tipy</button>
                     <button onclick="window.fullDeletePlayer('${id}', '${name}')" class="danger" style="padding:5px 10px; font-size:11px; background:#450a0a !important;">Smazat hráče</button>
                 </div>
@@ -261,7 +290,10 @@
             if(!m) return;
             ad.innerHTML += `<div class="admin-item">
                 <input class="input-wide" onchange="window.updateMatchData(${i},'desc',this.value)" value="${m.desc||''}" placeholder="Popis zápasu">
-                <div style="display:flex; gap:5px;"><input oninput="window.updateMatchData(${i},'home',this.value)" value="${m.home}"> <input oninput="window.updateMatchData(${i},'away',this.value)" value="${m.away}"></div>
+                <div style="display:flex; gap:5px;">
+                    <input onchange="window.updateMatchData(${i},'home',this.value)" value="${m.home}"> 
+                    <input onchange="window.updateMatchData(${i},'away',this.value)" value="${m.away}">
+                </div>
                 <input class="input-wide" onchange="window.updateMatchData(${i},'live',this.value)" value="${m.live||''}" placeholder="Průběžný stav (Live)">
                 <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:center;">
                     <button onclick="window.setRes(${i})" style="background:#10b981">Konečný výsledek</button>
