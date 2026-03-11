@@ -156,7 +156,6 @@
     window.toggleMatch = (i, state) => update(ref(db, `matches/${i}`), {closed: state});
     window.delMatch = (i) => { if(confirm("Smazat tento zápas?")) remove(ref(db, `matches/${i}`)); };
     
-    // FUNKCE PRO SPRÁVU HRÁČŮ
     window.addExtraPoints = async (id, name) => {
         let val = prompt(`Kolik bodů chceš hráči ${name} přičíst?`);
         if(val !== null && !isNaN(val)) {
@@ -290,6 +289,7 @@
             if(!m) return;
             ad.innerHTML += `<div class="admin-item">
                 <input class="input-wide" onchange="window.updateMatchData(${i},'desc',this.value)" value="${m.desc||''}" placeholder="Popis zápasu">
+                <input class="input-wide" onchange="window.updateMatchData(${i},'date',this.value)" value="${m.date||''}" placeholder="Termín (např. 12.05. 18:00)">
                 <div style="display:flex; gap:5px;">
                     <input onchange="window.updateMatchData(${i},'home',this.value)" value="${m.home}"> 
                     <input onchange="window.updateMatchData(${i},'away',this.value)" value="${m.away}">
