@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tipovačka</title>
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/9391/9391418.png" type="image/png">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/9391/9391418.png">
+    <title>Tipovačka Pro</title>
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/4242/4242098.png" type="image/png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4242/4242098.png">
     <style>
         /* INTRO ANIMACE */
         #intro {
@@ -15,14 +15,10 @@
         }
         #intro.hidden { opacity: 0; visibility: hidden; }
         
-        /* ÚPRAVA LOGA - BÍLÝ PODKLAD PRO TRANSPARENTNÍ IKONU */
-        .logo-style { 
-            width: 100px; 
-            height: 100px;
-            background: white; 
-            border-radius: 50%; 
-            padding: 15px; 
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        /* LOGO S HOKEJKAMI - ÚPRAVA VIDITELNOSTI POMOCÍ STÍNŮ */
+        .logo-main { 
+            width: 120px; 
+            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.6)) brightness(1.2);
             object-fit: contain;
         }
 
@@ -77,11 +73,11 @@
 <body>
 
     <div id="intro">
-        <img src="https://cdn-icons-png.flaticon.com/512/9391/9391418.png" class="logo-style" alt="Logo">
+        <img src="https://cdn-icons-png.flaticon.com/512/4242/4242141.png" class="logo-main" alt="Intro Logo">
     </div>
 
     <div style="margin-top: 20px;">
-        <img src="https://cdn-icons-png.flaticon.com/512/9391/9391418.png" class="logo-style" style="width: 70px; height: 70px;" alt="Logo">
+        <img src="https://cdn-icons-png.flaticon.com/512/4242/4242141.png" class="logo-main" style="width: 80px;" alt="Main Logo">
     </div>
     <h1>Tipovačka</h1>
     
