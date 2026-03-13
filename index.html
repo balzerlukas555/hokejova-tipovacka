@@ -77,7 +77,8 @@
 
         /* ARCHIV */
         #archiveSection { display: none; margin: 20px auto; padding: 15px; background: #1e293b; border-radius: 10px; max-width: 500px; text-align: left; }
-        .archive-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #334155; }
+        .archive-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #334155; align-items: center; }
+        .archive-date { font-size: 11px; color: #94a3b8; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -201,11 +202,10 @@
         // Zápasy & Archiv
         Object.keys(matches).sort().reverse().forEach(id => {
             const m = matches[id];
+            const dateOnly = m.date ? m.date.split(" ")[0] : "";
             
             if (m.phase !== 'archived') {
                 let st = m.phase==='live' ? "Zápas probíhá..." : (m.phase==='ended' ? "Zápas skončil" : m.date);
-                
-                // Kontrola jestli už uživatel tipoval
                 const hasTipped = tips[pId] && tips[pId].tips && tips[pId].tips[id];
                 const btnLabel = hasTipped ? "Upravit tip" : "Tipovat";
 
@@ -224,8 +224,9 @@
                 let btnTxt = m.phase==='planned' ? "Začít zápas" : (m.phase==='live' ? "Ukončit zápas" : "Archivovat");
                 adMatches.innerHTML += `<div class="admin-item"><input onchange="window.updateMatch('${id}','desc',this.value)" value="${m.desc}"><input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}"><div style="display:flex; gap:2px;"><input style="width:45%" onchange="window.updateMatch('${id}','home',this.value)" value="${m.home}"><input style="width:45%" onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}"></div>${m.phase === 'live' ? `<input placeholder="Live stav" onchange="window.updateMatch('${id}','live',this.value)" value="${m.live}">` : ''}<div style="margin-top:10px; display:flex; gap:5px; justify-content:center;"><button class="success" onclick="window.handlePhase('${id}','${m.phase}')">${btnTxt}</button><button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít tipy':'Zavřít tipy'}</button><button class="danger" onclick="window.deleteMatch('${id}')">Smazat</button></div></div>`;
             } else {
-                arcList.innerHTML += `<div class="archive-row"><span>${m.home} vs ${m.away}</span> <b>${m.result}</b></div>`;
-                adArchive.innerHTML += `<div class="archive-manage-item"><span><b>${m.home} - ${m.away}</b> (${m.result})</span><button class="danger" onclick="window.deleteMatch('${id}')" style="font-size:11px; padding:5px 10px;">Smazat</button></div>`;
+                // OPRAVA: Tady se teď zobrazuje datum i v archivu
+                arcList.innerHTML += `<div class="archive-row"><span>${m.home} vs ${m.away} <small class="archive-date">(${dateOnly})</small></span> <b>${m.result}</b></div>`;
+                adArchive.innerHTML += `<div class="archive-manage-item"><span><b>${m.home} - ${m.away}</b> (${dateOnly}, ${m.result})</span><button class="danger" onclick="window.deleteMatch('${id}')" style="font-size:11px; padding:5px 10px;">Smazat</button></div>`;
             }
         });
         renderTable();
@@ -241,10 +242,7 @@
             const m = matches[mid];
             const hName = (m.home || "T1").trim().substring(0, 3);
             const aName = (m.away || "T2").trim().substring(0, 3);
-            
-            // Vezme datum a vytáhne jen část před mezerou
             const dateOnly = m.date ? m.date.split(" ")[0] : "";
-            
             headerHtml += `<th>${hName} vs ${aName}<br><span style="font-size:10px; color:#94a3b8; font-weight:normal;">${dateOnly}</span></th>`;
         });
         headerHtml += "</tr></thead>";
@@ -260,10 +258,8 @@
                 const hName = (m.home || "T1").trim().substring(0, 3);
                 const aName = (m.away || "T2").trim().substring(0, 3);
                 const dateOnly = m.date ? m.date.split(" ")[0] : "";
-                
                 let t = tips[pid].tips?.[mid] || "-";
                 let cls = "", score = (m.phase === 'live' ? m.live : (m.result !== "-" ? m.result : null));
-                
                 if(score && score.includes(":") && t !== "-") {
                     let cleanRes = score.split(" ")[0];
                     let [rh, ra] = cleanRes.split(":").map(Number), [th, ta] = t.split(":").map(Number);
