@@ -7,33 +7,40 @@
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/4242/4242098.png" type="image/png">
     
     <style>
-        /* --- SEKCE: STYLOVÉ INTRO (Logo a text při načtení) --- */
+        /* INTRO */
         #intro { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            background: #0f172a; display: flex; align-items: center; justify-content: center; 
             z-index: 9999; transition: opacity 0.8s ease-out, visibility 0.8s; 
         }
         #intro.hidden { opacity: 0; visibility: hidden; }
-        .intro-container { text-align: center; animation: introPulse 2s infinite ease-in-out; }
-        .logo-intro { width: 100px; filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.5)); margin-bottom: 15px; }
-        .intro-text { color: white; font-size: 24px; font-weight: 900; letter-spacing: 6px; text-transform: uppercase; text-shadow: 0 0 10px rgba(59, 130, 246, 0.8); margin: 0; }
-        @keyframes introPulse { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.05); opacity: 1; } }
+        .logo-intro { 
+            width: 120px; 
+            filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.5));
+            animation: pulse 1.5s ease-in-out forwards;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
         
-        /* --- SEKCE: GLOBÁLNÍ STYLY --- */
         body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; padding: 10px; line-height: 1.5; }
         h1 { color: #3b82f6; margin: 15px 0; }
-        .menu-bar { margin: 20px 0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        h2 { font-size: 22px; }
+        h3 { color: #94a3b8; margin: 20px 0 10px 0; }
         
-        /* --- SEKCE: TLAČÍTKA --- */
+        .menu-bar { margin: 20px 0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
         button { padding: 10px 18px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; touch-action: manipulation; }
         button:active { transform: scale(0.95); }
         button:disabled { background: #475569 !important; cursor: not-allowed; opacity: 0.6; }
+        
         .btn-alt { background: #475569; }
         .btn-archive-trigger { background: #6366f1; }
         .success { background: #059669 !important; }
         .danger { background: #991b1b !important; }
 
-        /* --- SEKCE: KARTY ZÁPASŮ --- */
+        /* ZÁPASY */
         #matches { display: flex; flex-direction: column; align-items: center; gap: 15px; }
         .match { background: #1e293b; padding: 20px; border-radius: 12px; width: 100%; max-width: 450px; border: 1px solid #334155; position: relative; box-sizing: border-box; }
         .live-badge { position: absolute; top: 10px; right: 10px; background: #991b1b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; animation: blink 1.5s infinite; }
@@ -41,7 +48,7 @@
         .match-info { color: #94a3b8; font-size: 13px; display: block; }
         .match-status { color: #3b82f6; font-size: 14px; font-weight: bold; margin: 5px 0; display: block; }
 
-        /* --- SEKCE: TABULKA VÝSLEDKŮ (Desktop i Mobil) --- */
+        /* TABULKA */
         .tableWrap { width: 100%; max-width: 1000px; margin: 20px auto; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
         th, td { padding: 12px; border-bottom: 1px solid #334155; text-align: center; }
@@ -49,32 +56,29 @@
         .tip-tendency { background: #854d0e !important; color: #fde047 !important; }
         .my-row { border: 2px solid #3b82f6 !important; background: #1e294b !important; }
 
-        /* --- MOBILNÍ ZOBRAZENÍ (Karty místo řádků) --- */
+        /* MOBILNÍ RESPONSIVITA TABULKY */
         @media (max-width: 600px) {
             thead { display: none; }
             tr { display: block; margin-bottom: 15px; border: 1px solid #334155; border-radius: 10px; padding: 10px; background: #1e293b; }
             td { display: flex; justify-content: space-between; padding: 8px 5px; border: none; border-bottom: 1px solid #2d3748; text-align: right; }
             td::before { content: attr(data-label); font-weight: bold; text-align: left; color: #94a3b8; }
+            td:last-child { border-bottom: none; }
         }
 
-        /* --- SEKCE: ADMIN PANEL --- */
+        /* ADMIN */
         .admin { background: #111827; padding: 20px; display: none; border-radius: 12px; max-width: 650px; margin: 20px auto; border: 2px dashed #ef4444; box-sizing: border-box; }
-        .admin-item, .player-item { background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #444; }
-        .player-item { display: flex; justify-content: space-between; align-items: center; }
+        .admin-item, .player-item, .archive-manage-item { background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #444; }
+        .player-item, .archive-manage-item { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; text-align: left; }
         input { padding: 10px; margin: 5px; border-radius: 8px; background: #0f172a; color: white; border: 1px solid #475569; width: 85%; }
 
-        /* --- SEKCE: ARCHIV --- */
+        /* ARCHIV */
         #archiveSection { display: none; margin: 20px auto; padding: 15px; background: #1e293b; border-radius: 10px; max-width: 500px; text-align: left; }
+        .archive-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #334155; }
     </style>
 </head>
 <body>
 
-    <div id="intro">
-        <div class="intro-container">
-            <img src="https://cdn-icons-png.flaticon.com/512/4242/4242141.png" class="logo-intro">
-            <p class="intro-text">Tipovačka</p>
-        </div>
-    </div>
+    <div id="intro"><img src="https://cdn-icons-png.flaticon.com/512/4242/4242141.png" class="logo-intro"></div>
 
     <div style="margin-top: 20px;"><img src="https://cdn-icons-png.flaticon.com/512/4242/4242141.png" style="width: 60px;"></div>
     <h1>Tipovačka</h1>
@@ -86,31 +90,37 @@
     </div>
 
     <div id="matches">Načítám zápasy...</div>
+
     <h2>Tabulka výsledků</h2>
     <div class="tableWrap"><table id="playersTable"></table></div>
 
     <div id="archiveSection">
-        <h3 style="text-align:center; color:white;">Archiv výsledků</h3>
+        <h3 style="text-align:center; margin-top:0; color:white;">Archiv výsledků</h3>
         <div id="archiveList"></div>
     </div>
 
     <div id="adminPanel" class="admin">
         <h2>Admin Panel</h2>
-        <div style="margin-bottom:20px; display:flex; gap:10px; justify-content:center;">
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:20px;">
             <button onclick="window.addMatch()" class="success">Přidat zápas</button>
             <button onclick="window.clearAllData()" class="danger">Smazat vše</button>
             <button onclick="document.getElementById('adminPanel').style.display='none'" class="btn-alt">Zavřít</button>
         </div>
-        <hr>
-        <h3>Správa hráčů</h3><div id="adminPlayers"></div>
-        <hr>
-        <h3>Správa zápasů</h3><div id="adminMatches"></div>
-        <hr>
-        <h3>Správa archivu</h3><div id="adminArchive"></div>
+
+        <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+        <h3>Správa hráčů</h3>
+        <div id="adminPlayers"></div>
+
+        <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+        <h3>Správa zápasů</h3>
+        <div id="adminMatches"></div>
+
+        <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+        <h3>Správa archivu</h3>
+        <div id="adminArchive"></div>
     </div>
 
 <script type="module">
-    // --- DATABASE IMPORT ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
@@ -126,40 +136,37 @@
     let matches = {}, tips = {}, points = {}, pId = localStorage.getItem("pId") || "p"+Math.random().toString(16).slice(2);
     localStorage.setItem("pId", pId);
 
-    // --- INTRO TIMER ---
-    window.addEventListener('load', () => setTimeout(() => document.getElementById('intro').classList.add('hidden'), 1800));
-    
-    // --- ADMIN LOGIN ---
+    window.addEventListener('load', () => setTimeout(() => document.getElementById('intro').classList.add('hidden'), 1500));
     window.adminLogin = () => { if (prompt("Heslo:") === "Acsparta333") document.getElementById("adminPanel").style.display = "block"; };
 
-    // --- PLAYER MGMT ---
+    // HRÁČI MODERACE
     window.addExtraPoints = (id, name) => {
         let val = prompt(`Přidat/odebrat body hráči ${name}:`, "0");
         if(val !== null) set(ref(db, `points/${id}`), (points[id] || 0) + parseInt(val));
     };
-    window.fullDeletePlayer = (id) => { if(confirm("Smazat hráče z DB?")) { remove(ref(db, `tips/${id}`)); remove(ref(db, `points/${id}`)); }};
+    window.clearPlayerPoints = (id, name) => { if(confirm(`Vynulovat body hráči ${name}?`)) set(ref(db, `points/${id}`), 0); };
+    window.deletePlayerTips = (id, name) => { if(confirm(`Smazat všechny tipy hráči ${name}?`)) remove(ref(db, `tips/${id}/tips`)); };
+    window.fullDeletePlayer = (id, name) => { if(confirm(`Smazat hráče ${name} z databáze?`)) { remove(ref(db, `tips/${id}`)); remove(ref(db, `points/${id}`)); }};
 
-    // --- MATCH MGMT ---
+    // ZÁPASY MODERACE
     window.addMatch = () => {
         const id = Date.now();
         set(ref(db, `matches/${id}`), { home:"Tým 1", away:"Tým 2", date:"12.3. 18:00", desc:"Zápas", phase: "planned", live: "0:0 (T1)", result: "-", closed: false });
     };
     window.updateMatch = (id, field, val) => update(ref(db, `matches/${id}`), { [field]: val });
-    window.deleteMatch = (id) => { if(confirm("Smazat zápas?")) remove(ref(db, `matches/${id}`)); };
-    window.clearAllData = () => { if(confirm("VYMAZAT KOMPLETNÍ DATABÁZI?")) remove(ref(db, "/")); };
+    window.deleteMatch = (id) => { if(confirm("Definitivně smazat tento zápas?")) remove(ref(db, `matches/${id}`)); };
+    window.clearAllData = () => { if(confirm("VAROVÁNÍ: Smazat úplně všechna data?")) remove(ref(db, "/")); };
 
-    // --- LIVE & PHASE LOGIC (Opraveno propisování Live stavu) ---
     window.handlePhase = (id, phase) => {
         if (phase === 'planned') update(ref(db, `matches/${id}`), { phase: 'live', closed: true });
         else if (phase === 'live') {
-            let res = prompt("Konečný výsledek (např. 3:2):");
+            let res = prompt("Konečný výsledek (např. 2:0):");
             if (res) update(ref(db, `matches/${id}`), { phase: 'ended', result: res, live: "" });
         } else if (phase === 'ended') {
             if(confirm("Přesunout do archivu?")) update(ref(db, `matches/${id}`), { phase: 'archived' });
         }
     };
 
-    // --- USER ACTIONS ---
     window.toggleArchive = () => { const s = document.getElementById("archiveSection"); s.style.display = s.style.display === "block" ? "none" : "block"; };
     window.changeName = () => { let n = prompt("Tvé jméno:"); if(n) { localStorage.setItem("pName", n.trim()); set(ref(db, `tips/${pId}/name`), n.trim()); }};
     
@@ -170,55 +177,71 @@
         if(t && t.includes(":")) { set(ref(db, `tips/${pId}/name`), n); set(ref(db, `tips/${pId}/tips/${id}`), t); }
     };
 
-    // --- MAIN RENDER LOOP ---
     onValue(ref(db, "/"), snap => {
         const d = snap.val() || {};
         matches = d.matches || {}; tips = d.tips || {}; points = d.points || {};
-        const mDiv = document.getElementById("matches"), arcList = document.getElementById("archiveList");
-        const adMatches = document.getElementById("adminMatches"), adPlayers = document.getElementById("adminPlayers"), adArchive = document.getElementById("adminArchive");
+        const mDiv = document.getElementById("matches");
+        const arcList = document.getElementById("archiveList");
+        const adMatches = document.getElementById("adminMatches");
+        const adPlayers = document.getElementById("adminPlayers");
+        const adArchive = document.getElementById("adminArchive");
         
         mDiv.innerHTML = ""; arcList.innerHTML = ""; adMatches.innerHTML = ""; adPlayers.innerHTML = ""; adArchive.innerHTML = "";
 
-        // Admin: Hráči
+        // Admin Hráči
         Object.keys(tips).forEach(id => {
             const name = tips[id].name || "Neznámý";
-            adPlayers.innerHTML += `<div class="player-item"><span><b>${name}</b> (${points[id]||0} b.)</span><div><button onclick="window.addExtraPoints('${id}','${name}')">+/- Body</button> <button class="danger" onclick="window.fullDeletePlayer('${id}')">X</button></div></div>`;
+            adPlayers.innerHTML += `<div class="player-item"><span><b>${name}</b> (${points[id]||0} b.)</span><div style="display:flex; gap:5px; flex-wrap:wrap;"><button onclick="window.addExtraPoints('${id}','${name}')" style="background:#0ea5e9; font-size:11px; padding:5px 10px;">+/- Body</button><button onclick="window.clearPlayerPoints('${id}','${name}')" style="background:#f59e0b; font-size:11px; padding:5px 10px;">Reset body</button><button onclick="window.deletePlayerTips('${id}','${name}')" class="danger" style="font-size:11px; padding:5px 10px;">Smazat tipy</button><button onclick="window.fullDeletePlayer('${id}','${name}')" class="danger" style="font-size:11px; padding:5px 10px; background:#450a0a !important;">Smazat hráče</button></div></div>`;
         });
 
         // Zápasy & Archiv
         Object.keys(matches).sort().reverse().forEach(id => {
             const m = matches[id];
+            
             if (m.phase !== 'archived') {
                 let st = m.phase==='live' ? "Zápas probíhá..." : (m.phase==='ended' ? "Zápas skončil" : m.date);
-                const hasTipped = tips[pId]?.tips?.[id];
+                
+                // Kontrola jestli už uživatel tipoval
+                const hasTipped = tips[pId] && tips[pId].tips && tips[pId].tips[id];
                 const btnLabel = hasTipped ? "Upravit tip" : "Tipovat";
 
-                // Uživatelské zobrazení
-                mDiv.innerHTML += `<div class="match">${m.phase==='live'?'<span class="live-badge">LIVE</span>':''}<span class="match-info">${m.desc}</span><span class="match-status">${st}</span><h2>${m.home} - ${m.away}</h2>${m.phase!=='planned'?`<p>${m.phase==='live'?'Aktuální stav':'Výsledek'}: <b>${m.phase==='live'?m.live:m.result}</b></p>`:''}<button onclick="window.sendTip('${id}')" ${m.closed?'disabled':''}>${m.closed?'Zavřeno':btnLabel}</button></div>`;
+                mDiv.innerHTML += `
+                    <div class="match">
+                        ${m.phase === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
+                        <span class="match-info">${m.desc}</span>
+                        <span class="match-status">${st}</span>
+                        <h2>${m.home} - ${m.away}</h2>
+                        ${m.phase !== 'planned' ? `<p>${m.phase==='live'?'Aktuální stav':'Výsledek'}: <b>${m.phase==='live'?m.live:m.result}</b></p>` : ''}
+                        <button onclick="window.sendTip('${id}')" ${m.closed ? 'disabled' : ''}>
+                            ${m.closed ? 'Zavřeno' : btnLabel}
+                        </button>
+                    </div>`;
                 
-                // Admin zobrazení
-                let btnTxt = m.phase==='planned' ? "Začít" : (m.phase==='live' ? "Ukončit" : "Archivovat");
-                adMatches.innerHTML += `<div class="admin-item"><input onchange="window.updateMatch('${id}','desc',this.value)" value="${m.desc}"><div style="display:flex; gap:5px;"><input style="width:45%" onchange="window.updateMatch('${id}','home',this.value)" value="${m.home}"><input style="width:45%" onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}"></div>${m.phase==='live'?`<input placeholder="Průběžný stav (Live)" onchange="window.updateMatch('${id}','live',this.value)" value="${m.live}">`:''}<div style="margin-top:10px;"><button class="success" onclick="window.handlePhase('${id}','${m.phase}')">${btnTxt}</button> <button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít':'Zavřít'}</button> <button class="danger" onclick="window.deleteMatch('${id}')">Smazat</button></div></div>`;
+                let btnTxt = m.phase==='planned' ? "Začít zápas" : (m.phase==='live' ? "Ukončit zápas" : "Archivovat");
+                adMatches.innerHTML += `<div class="admin-item"><input onchange="window.updateMatch('${id}','desc',this.value)" value="${m.desc}"><input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}"><div style="display:flex; gap:2px;"><input style="width:45%" onchange="window.updateMatch('${id}','home',this.value)" value="${m.home}"><input style="width:45%" onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}"></div>${m.phase === 'live' ? `<input placeholder="Live stav" onchange="window.updateMatch('${id}','live',this.value)" value="${m.live}">` : ''}<div style="margin-top:10px; display:flex; gap:5px; justify-content:center;"><button class="success" onclick="window.handlePhase('${id}','${m.phase}')">${btnTxt}</button><button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít tipy':'Zavřít tipy'}</button><button class="danger" onclick="window.deleteMatch('${id}')">Smazat</button></div></div>`;
             } else {
-                arcList.innerHTML += `<div style="padding:10px; border-bottom:1px solid #334155;">${m.home} vs ${m.away} | <b>${m.result}</b></div>`;
-                adArchive.innerHTML += `<div class="player-item">${m.home}-${m.away} <button class="danger" onclick="window.deleteMatch('${id}')">Smazat</button></div>`;
+                arcList.innerHTML += `<div class="archive-row"><span>${m.home} vs ${m.away}</span> <b>${m.result}</b></div>`;
+                adArchive.innerHTML += `<div class="archive-manage-item"><span><b>${m.home} - ${m.away}</b> (${m.result})</span><button class="danger" onclick="window.deleteMatch('${id}')" style="font-size:11px; padding:5px 10px;">Smazat</button></div>`;
             }
         });
         renderTable();
     });
 
-    // --- TABLE GENERATOR ---
     function renderTable() {
         const table = document.getElementById("playersTable");
         let sortedIds = Object.keys(tips).sort((a,b) => (points[b]||0) - (points[a]||0));
         let activeMatches = Object.keys(matches).filter(id => matches[id].phase !== 'archived');
         let h = "<thead><tr><th>Hráč</th><th>Body</th>" + activeMatches.map((_,i) => `<th>Z${i+1}</th>`).join('') + "</tr></thead><tbody>";
         sortedIds.forEach(pid => {
-            h += `<tr class="${pid===pId?'my-row':''}"><td data-label="Hráč"><b>${tips[pid].name}</b></td><td data-label="Body"><b>${points[pid]||0}</b></td>`;
+            h += `<tr class="${pid===pId?'my-row':''}">
+                <td data-label="Hráč"><b>${tips[pid].name}</b></td>
+                <td data-label="Body"><b>${points[pid]||0}</b></td>`;
             activeMatches.forEach(mid => {
-                let t = tips[pid].tips?.[mid] || "-", cls = "", m = matches[mid], score = (m.phase==='live'?m.live:(m.result!=="-"?m.result:null));
+                let t = tips[pid].tips?.[mid] || "-";
+                let cls = "", m = matches[mid], score = (m.phase === 'live' ? m.live : (m.result !== "-" ? m.result : null));
                 if(score && score.includes(":") && t !== "-") {
-                    let cleanRes = score.split(" ")[0], [rh, ra] = cleanRes.split(":").map(Number), [th, ta] = t.split(":").map(Number);
+                    let cleanRes = score.split(" ")[0];
+                    let [rh, ra] = cleanRes.split(":").map(Number), [th, ta] = t.split(":").map(Number);
                     if(rh===th && ra===ta) cls = "tip-exact";
                     else if((rh>ra && th>ta) || (rh<ra && th<ta) || (rh===ra && th===ta)) cls = "tip-tendency";
                 }
