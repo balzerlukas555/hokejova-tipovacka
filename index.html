@@ -475,7 +475,6 @@
             const gMatches = Object.keys(state.matches).filter(mid => state.matches[mid].group === gId);
             if(gMatches.length === 0) return;
             
-            // Logika pro šedý proužek
             const allFinished = gMatches.every(mId => state.matches[mId].status === 'Dohráno');
             const gName = gId === "none" ? "Ostatní" : state.groups[gId].name;
             
