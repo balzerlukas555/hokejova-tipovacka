@@ -43,6 +43,7 @@
         button { padding: 10px 15px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-weight: bold; cursor: pointer; }
         .btn-danger { background: #991b1b; } .btn-success { background: #059669; } .btn-alt { background: #475569; }
         .btn-gold { background: #d97706; }
+        .btn-disabled { background: #334155; cursor: not-allowed; opacity: 0.5; }
     </style>
 </head>
 <body>
@@ -108,7 +109,6 @@
     window.addEventListener('load', () => setTimeout(() => document.getElementById('intro').classList.add('hidden'), 1200));
     window.adminLogin = () => { if (prompt("Heslo:") === "Acsparta333") document.getElementById("adminPanel").style.display = "block"; };
 
-    // --- ADMIN FUNKCE ---
     window.addGroup = () => {
         const n = document.getElementById("newGroupName").value;
         if(n) set(ref(db, `groups/g${Date.now()}`), { name: n, order: Date.now() });
@@ -119,10 +119,10 @@
     window.deleteMatch = (id) => confirm("Smazat?") && remove(ref(db, `matches/${id}`));
     window.modPlayer = (id, field, val) => update(ref(db, `tips/${id}`), { [field]: val });
 
-    // --- VYHODNOCENÍ ---
     window.evaluateMatch = (mId) => {
         const m = state.matches[mId];
-        if(!confirm(`Opravdu vyhodnotit zápas ${m.home}-${m.away} stavem ${m.score}?`)) return;
+        if(m.status !== "Konec") return alert("Zápas musí být ve stavu 'Konec'!");
+        if(!confirm(`Vyhodnotit ${m.home}-${m.away} stavem ${m.score} (BRÁNO JAKO VÝSLEDEK ZHD)?`)) return;
 
         Object.keys(state.players).forEach(pId => {
             const bet = state.players[pId]?.bets?.[mId];
@@ -130,11 +130,16 @@
 
             let multiplier = 0;
             const [hScore, aScore] = m.score.split(":").map(Number);
-            const winner = hScore > aScore ? "1" : (hScore < aScore ? "2" : "0");
             const [betH, betA] = bet.tip.split(":").map(Number);
-            const betWinner = betH > betA ? "1" : (betH < betA ? "2" : "0");
 
-            if(bet.tip === m.score) multiplier = 3;
+            // Logika vítěze (1, 0, 2) v Základní hrací době
+            let winner = "0";
+            if(hScore > aScore) winner = "1";
+            else if(aScore > hScore) winner = "2";
+
+            const betWinner = betH > betA ? "1" : (betA > betH ? "2" : "0");
+
+            if(bet.tip === m.score) multiplier = 3; 
             else if(betWinner === winner) multiplier = 2;
 
             if(multiplier > 0) {
@@ -147,7 +152,6 @@
         alert("Vyhodnoceno!");
     };
 
-    // --- SÁZECÍ LOGIKA ---
     window.placeBet = (mId) => {
         const m = state.matches[mId];
         if(m.closed) return;
@@ -191,7 +195,6 @@
                     <input style="width:40%" onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}">
                 </div>
                 <input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}">
-                
                 <select onchange="window.updateMatch('${id}', 'group', this.value)">${gOpts}</select>
 
                 ${m.status === "Plánováno" ? 
@@ -203,16 +206,18 @@
                             <option value="2. Třetina" ${m.status==='2. Třetina'?'selected':''}>2. Třetina</option>
                             <option value="Po 2. Třetině" ${m.status==='Po 2. Třetině'?'selected':''}>Po 2. Třetině</option>
                             <option value="3. Třetina" ${m.status==='3. Třetina'?'selected':''}>3. Třetina</option>
+                            <option value="Po 3. Třetině" ${m.status==='Po 3. Třetině'?'selected':''}>Po 3. Třetině</option>
+                            <option value="Prodloužení" ${m.status==='Prodloužení'?'selected':''}>Prodloužení</option>
+                            <option value="Po prodloužení" ${m.status==='Po prodloužení'?'selected':''}>Po prodloužení</option>
+                            <option value="Nájezdy" ${m.status==='Nájezdy'?'selected':''}>Nájezdy</option>
                             <option value="Konec" ${m.status==='Konec'?'selected':''}>Konec</option>
-                            <option value="Konec PP" ${m.status==='Konec PP'?'selected':''}>Konec PP</option>
-                            <option value="Konec SN" ${m.status==='Konec SN'?'selected':''}>Konec SN</option>
                             <option value="Dohráno" ${m.status==='Dohráno'?'selected':''}>Dohráno</option>
                         </select>
                         <input style="width:40%" onchange="window.updateMatch('${id}','score',this.value)" value="${m.score}">
                     </div>`
                 }
                 <div style="margin-top:5px; display:flex; gap:5px;">
-                    <button class="btn-gold" onclick="window.evaluateMatch('${id}')">VYHODNOTIT</button>
+                    <button class="${m.status==='Konec'?'btn-gold':'btn-disabled'}" onclick="window.evaluateMatch('${id}')">VYHODNOTIT</button>
                     <button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít':'Zavřít'}</button>
                     <button class="btn-danger" onclick="window.deleteMatch('${id}')">Smazat</button>
                 </div>
@@ -247,7 +252,7 @@
             gMatches.forEach(mId => {
                 const m = state.matches[mId];
                 const myBet = state.players[state.pId]?.bets?.[mId];
-                gHtml += `<div class="match"><div class="match-header"><span>${m.date}</span> <span class="status-badge">${m.status}</span></div><div class="teams">${m.home} ${m.status !== 'Plánováno' ? `<span class="live-score">${m.score}</span>` : 'vs'} ${m.away}</div>
+                gHtml += `<div class="match"><div class="match-header"><span>${m.date}</span> <span class="status-badge">${m.status}</span></div><div class="teams">${m.home} ${m.status !== 'Plánováno' && m.status !== 'Dohráno' ? `<span class="live-score">${m.score}</span>` : (m.status === 'Dohráno' ? `<span class="live-score" style="background:#059669">${m.score}</span>` : 'vs')} ${m.away}</div>
                     ${myBet ? `<div onclick="window.placeBet('${mId}')" style="color:#6ee7b7; font-size:13px; cursor:pointer">Tvůj tip: ${myBet.tip} (${myBet.stake} TC) ✍️</div>` : 
                     `<button onclick="window.placeBet('${mId}')" ${m.closed ? 'disabled' : ''}>${m.closed ? 'Zavřeno' : 'Vsadit'}</button>`}</div>`;
             });
