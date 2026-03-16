@@ -10,89 +10,310 @@
     <meta name="theme-color" content="#0f172a">
     
     <style>
-        #intro { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.8s; }
-        #intro.hidden { opacity: 0; pointer-events: none; }
-        .logo-intro { width: 120px; }
-
+        /* --- LOGIN STYLY --- */
         #authContainer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; z-index: 9998; display: flex; align-items: center; justify-content: center; }
-        .auth-box { background: #1e293b; padding: 25px; border-radius: 15px; width: 90%; max-width: 350px; border: 1px solid #3b82f6; }
+        .auth-box { background: #1e293b; padding: 25px; border-radius: 15px; width: 90%; max-width: 350px; border: 1px solid #3b82f6; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .auth-box h2 { margin-top: 0; color: #3b82f6; }
 
-        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; padding: 10px; }
-        .wallet-card { background: #1e294b; border: 2px solid #3b82f6; border-radius: 12px; padding: 15px; margin: 10px auto; max-width: 400px; }
-        .balance-val { font-size: 24px; color: #6ee7b7; font-weight: bold; }
-        .name-tag { font-size: 14px; color: #94a3b8; margin-bottom: 5px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        /* --- INTRO ANIMACE --- */
+        #intro { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #0f172a; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 9999; 
+            transition: opacity 0.8s ease-out; 
+            pointer-events: all; 
+        }
 
-        .group-container { margin: 20px auto; max-width: 500px; text-align: left; }
-        .group-header { background: #1e293b; border-left: 4px solid #3b82f6; padding: 12px; margin-bottom: 5px; cursor: pointer; display: flex; justify-content: space-between; font-weight: bold; border-radius: 4px; }
-        .group-header.finished { border-left-color: #475569; color: #94a3b8; }
-        .group-content.collapsed { display: none; }
+        #intro.hidden { 
+            opacity: 0; 
+            pointer-events: none; 
+        }
 
-        .match { background: #1e293b; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #334155; }
-        .teams { font-size: 18px; font-weight: bold; margin: 10px 0; }
-        .live-score { background: #991b1b; padding: 2px 8px; border-radius: 4px; }
+        .logo-intro { 
+            width: 120px; 
+        }
+        
+        /* --- BODY STYLY --- */
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: #0f172a; 
+            color: white; 
+            text-align: center; 
+            margin: 0; 
+            padding: 10px; 
+        }
 
-        table { width: 100%; background: #1e293b; border-radius: 10px; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
-        th, td { padding: 10px; border-bottom: 1px solid #334155; }
-        .my-row { background: #1e294b; border: 1px solid #3b82f6; }
+        h1 { 
+            color: #3b82f6; 
+            margin-bottom: 5px; 
+        }
+        
+        /* --- KARTA HRÁČE --- */
+        .wallet-card { 
+            background: #1e294b; 
+            border: 2px solid #3b82f6; 
+            border-radius: 12px; 
+            padding: 15px; 
+            margin: 10px auto; 
+            max-width: 400px; 
+        }
 
-        .admin { background: #111827; padding: 15px; display: none; border-radius: 12px; max-width: 800px; margin: 20px auto; border: 2px dashed #ef4444; text-align: left; }
-        .admin-section { background: #1e293b; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
-        input, select { padding: 8px; border-radius: 6px; background: #0f172a; color: white; border: 1px solid #334155; margin: 5px 0; width: 100%; box-sizing: border-box; }
-        button { padding: 10px 15px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-weight: bold; cursor: pointer; margin: 2px; }
-        .btn-danger { background: #991b1b; } .btn-success { background: #059669; } .btn-gold { background: #d97706; } .btn-alt { background: #475569; }
+        .balance-val { 
+            font-size: 24px; 
+            color: #6ee7b7; 
+            font-weight: bold; 
+        }
+        
+        .name-tag {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- SKUPINY (KATEGORIE) --- */
+        .group-container { 
+            margin: 20px auto; 
+            max-width: 500px; 
+            text-align: left; 
+        }
+
+        .group-header { 
+            background: #1e293b; 
+            border-left: 4px solid #3b82f6; 
+            padding: 12px; 
+            margin-bottom: 5px; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            font-weight: bold; 
+            border-radius: 4px; 
+            transition: border-color 0.3s;
+        }
+
+        /* Šedý proužek pro dohrané kategorie */
+        .group-header.finished {
+            border-left-color: #475569;
+            color: #94a3b8;
+        }
+
+        .group-content { 
+            display: block; 
+            margin-bottom: 20px; 
+        }
+
+        /* Výchozí schování */
+        .group-content.collapsed { 
+            display: none; 
+        }
+
+        /* --- ZÁPASY --- */
+        .match { 
+            background: #1e293b; 
+            padding: 15px; 
+            border-radius: 12px; 
+            margin-bottom: 10px; 
+            border: 1px solid #334155; 
+            position: relative; 
+        }
+
+        .match-header { 
+            font-size: 12px; 
+            color: #94a3b8; 
+            margin-bottom: 8px; 
+            display: flex; 
+            justify-content: space-between; 
+        }
+
+        .status-badge { 
+            color: #3b82f6; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+        }
+
+        .teams { 
+            font-size: 18px; 
+            font-weight: bold; 
+            margin: 10px 0; 
+        }
+
+        .live-score { 
+            background: #991b1b; 
+            padding: 2px 8px; 
+            border-radius: 4px; 
+            font-size: 16px; 
+            margin: 0 5px; 
+        }
+
+        /* --- ŽEBŘÍČEK --- */
+        .table-wrap { 
+            overflow-x: auto; 
+            margin: 20px auto; 
+            max-width: 950px; 
+        }
+
+        table { 
+            width: 100%; 
+            background: #1e293b; 
+            border-radius: 10px; 
+            border-collapse: collapse; 
+            font-size: 13px; 
+        }
+
+        th, td { 
+            padding: 10px; 
+            border-bottom: 1px solid #334155; 
+            text-align: center; 
+        }
+
+        .my-row { 
+            background: #1e294b; 
+            border: 1px solid #3b82f6; 
+        }
+
+        .bet-info { 
+            font-size: 11px; 
+            color: #94a3b8; 
+            display: block; 
+        }
+
+        /* --- ADMIN --- */
+        .admin { 
+            background: #111827; 
+            padding: 15px; 
+            display: none; 
+            border-radius: 12px; 
+            max-width: 800px; 
+            margin: 20px auto; 
+            border: 2px dashed #ef4444; 
+            text-align: left; 
+        }
+
+        .admin-section { 
+            background: #1e293b; 
+            padding: 15px; 
+            border-radius: 10px; 
+            margin-bottom: 15px; 
+        }
+
+        input, select { 
+            padding: 8px; 
+            border-radius: 6px; 
+            background: #0f172a; 
+            color: white; 
+            border: 1px solid #334155; 
+            margin: 5px 0; 
+            width: 100%; 
+            box-sizing: border-box; 
+        }
+
+        button { 
+            padding: 10px 15px; 
+            border: none; 
+            border-radius: 8px; 
+            background: #3b82f6; 
+            color: white; 
+            font-weight: bold; 
+            cursor: pointer; 
+        }
+
+        .btn-danger { background: #991b1b; } 
+        .btn-success { background: #059669; } 
+        .btn-alt { background: #475569; }
+        .btn-gold { background: #d97706; }
+        .btn-disabled { background: #334155; cursor: not-allowed; opacity: 0.5; }
+        
+        .btn-small { 
+            padding: 4px 8px; 
+            font-size: 11px; 
+        }
     </style>
 </head>
 <body>
 
-    <div id="intro"><img src="https://cdn-icons-png.flaticon.com/512/4242/4242141.png" class="logo-intro"></div>
+    <div id="intro">
+        <img src="https://cdn-icons-png.flaticon.com/512/4242/4242141.png" class="logo-intro">
+    </div>
 
     <div id="authContainer">
         <div class="auth-box" id="loginForm">
             <h2>Přihlášení</h2>
             <input type="email" id="email" placeholder="E-mail">
             <input type="password" id="pass" placeholder="Heslo">
-            <button onclick="window.handleLogin()" style="width:100%">Vstoupit</button>
-            <p onclick="window.toggleAuth(true)" style="cursor:pointer; color:#3b82f6; font-size:12px">Registrovat se</p>
+            <button onclick="window.handleLogin()" style="width:100%; margin-top:10px;">Vstoupit</button>
+            <p style="font-size:12px; margin-top:15px; color:#94a3b8">Nemáš účet? <a href="#" onclick="window.toggleAuth(true)" style="color:#3b82f6">Zaregistruj se</a></p>
         </div>
         <div class="auth-box" id="regForm" style="display:none">
             <h2>Registrace</h2>
             <input type="text" id="regName" placeholder="Tvé jméno">
             <input type="email" id="regEmail" placeholder="E-mail">
-            <input type="password" id="regPass" placeholder="Heslo">
-            <button onclick="window.handleRegister()" class="btn-success" style="width:100%">Vytvořit účet</button>
-            <p onclick="window.toggleAuth(false)" style="cursor:pointer; color:#3b82f6; font-size:12px">Zpět na přihlášení</p>
+            <input type="password" id="regPass" placeholder="Heslo (min. 6 znaků)">
+            <button onclick="window.handleRegister()" class="btn-success" style="width:100%; margin-top:10px;">Vytvořit účet</button>
+            <p style="font-size:12px; margin-top:15px; color:#94a3b8">Máš účet? <a href="#" onclick="window.toggleAuth(false)" style="color:#3b82f6">Přihlas se</a></p>
         </div>
     </div>
 
     <div id="appUI" style="display:none">
         <h1>Tipovačka</h1>
+        
         <div class="wallet-card">
-            <div class="name-tag"><span id="displayName">...</span> <button class="btn-alt btn-small" onclick="window.changeMyName()">Změnit jméno</button> <button class="btn-danger btn-small" onclick="window.logout()">Odhlásit</button></div>
-            <div class="balance-val"><span id="myBalance">0</span> TC</div>
+            <div class="name-tag">
+                <span id="displayName">Načítám...</span>
+                <button class="btn-alt btn-small" onclick="window.changeMyName()">Změnit jméno</button>
+                <button class="btn-danger btn-small" onclick="window.logout()">Odhlásit</button>
+            </div>
+            <div>Moje peněženka</div>
+            <div class="balance-val"><span id="myBalance">2500</span> TC</div>
         </div>
 
-        <div id="matchesContainer"></div>
-        <h2>Žebříček sázkařů</h2>
-        <table id="playersTable"></table>
+        <div id="mainContent">
+            <div id="matchesContainer">Načítám zápasy...</div>
+            
+            <h2>Žebříček sázkařů</h2>
+            <div class="table-wrap">
+                <table id="playersTable"></table>
+            </div>
+        </div>
 
         <div id="adminPanel" class="admin">
+            <h2 style="text-align:center">Admin Panel 2.0</h2>
+            
             <div class="admin-section">
-                <h3>Skupiny</h3>
-                <input id="newGroupName"><button onclick="window.addGroup()" class="btn-success">Přidat skupinu</button>
-                <div id="adminGroupsList"></div>
+                <h3>Správa skupin</h3>
+                <div style="display:flex; gap:5px;">
+                    <input id="newGroupName" placeholder="Název skupiny">
+                    <button onclick="window.addGroup()" class="btn-success">Vytvořit</button>
+                </div>
+                <div id="adminGroupsList" style="margin-top:10px;"></div>
             </div>
+
             <div class="admin-section">
-                <h3>Zápasy</h3>
-                <button onclick="window.addMatch()" class="btn-success" style="width:100%">+ Nový zápas</button>
-                <div id="adminMatchesList"></div>
+                <h3>Správa zápasů</h3>
+                <button onclick="window.addMatch()" class="btn-success" style="width:100%">+ Přidat nový zápas</button>
+                <div id="adminMatchesList" style="margin-top:10px;"></div>
             </div>
+
             <div class="admin-section">
-                <h3>Hráči</h3>
+                <h3>Moderace hráčů</h3>
                 <div id="adminPlayersList"></div>
             </div>
             <button onclick="document.getElementById('adminPanel').style.display='none'" class="btn-alt" style="width:100%">Zavřít</button>
         </div>
-        <button onclick="window.adminLogin()" class="btn-alt" style="margin-top:20px">Admin</button>
+
+        <div style="margin: 20px 0;">
+            <button onclick="window.adminLogin()" class="btn-alt">Admin sekce</button>
+        </div>
     </div>
 
 <script type="module">
@@ -100,109 +321,247 @@
     import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-    const firebaseConfig = { apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE", authDomain: "tipovacka-fce0e.firebaseapp.com", databaseURL: "https://tipovacka-fce0e-default-rtdb.europe-west1.firebasedatabase.app", projectId: "tipovacka-fce0e" };
+    const firebaseConfig = {
+        apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
+        authDomain: "tipovacka-fce0e.firebaseapp.com",
+        databaseURL: "https://tipovacka-fce0e-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "tipovacka-fce0e"
+    };
+
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { matches: {}, groups: {}, players: {}, user: null };
+    let state = { matches: {}, groups: {}, players: {}, pId: null };
 
-    window.toggleAuth = (s) => { document.getElementById('loginForm').style.display = s ? 'none' : 'block'; document.getElementById('regForm').style.display = s ? 'block' : 'none'; };
-    window.handleRegister = () => {
-        const n = document.getElementById('regName').value, e = document.getElementById('regEmail').value, p = document.getElementById('regPass').value;
-        createUserWithEmailAndPassword(auth, e, p).then(u => set(ref(db, `tips/${u.user.uid}`), { name: n, balance: 2500 })).catch(a => alert(a.message));
+    // --- AUTH FUNKCE ---
+    window.toggleAuth = (showReg) => {
+        document.getElementById('loginForm').style.display = showReg ? 'none' : 'block';
+        document.getElementById('regForm').style.display = showReg ? 'block' : 'none';
     };
-    window.handleLogin = () => { signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('pass').value).catch(a => alert(a.message)); };
-    window.logout = () => signOut(auth);
-    window.changeMyName = () => { const n = prompt("Nové jméno:"); if(n) update(ref(db, `tips/${state.user.uid}`), { name: n }); };
 
-    onAuthStateChanged(auth, u => {
-        state.user = u;
-        document.getElementById('authContainer').style.display = u ? 'none' : 'flex';
-        document.getElementById('appUI').style.display = u ? 'block' : 'none';
+    window.handleRegister = () => {
+        const name = document.getElementById('regName').value;
+        const email = document.getElementById('regEmail').value;
+        const pass = document.getElementById('regPass').value;
+        if(!name) return alert("Zadej jméno!");
+        createUserWithEmailAndPassword(auth, email, pass)
+            .then((userCredential) => {
+                set(ref(db, `tips/${userCredential.user.uid}`), { name: name, balance: 2500 });
+            })
+            .catch((error) => alert(error.message));
+    };
+
+    window.handleLogin = () => {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('pass').value;
+        signInWithEmailAndPassword(auth, email, pass).catch((error) => alert(error.message));
+    };
+
+    window.logout = () => signOut(auth);
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            state.pId = user.uid;
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('appUI').style.display = 'block';
+        } else {
+            state.pId = null;
+            document.getElementById('authContainer').style.display = 'flex';
+            document.getElementById('appUI').style.display = 'none';
+        }
     });
 
-    window.adminLogin = () => { if(prompt("Heslo:") === "Acsparta333") document.getElementById("adminPanel").style.display = "block"; };
-    window.addGroup = () => { const n = document.getElementById("newGroupName").value; if(n) set(ref(db, `groups/g${Date.now()}`), { name: n, order: Date.now() }); };
-    window.deleteGroup = (id) => { if(confirm("Smazat?")) remove(ref(db, `groups/${id}`)); };
-    window.addMatch = () => { set(ref(db, `matches/m${Date.now()}`), { home:"Tým A", away:"Tým B", date:"1.1. 18:00", group:"none", status:"Plánováno", score:"0:0", closed:false }); };
-    window.updateMatch = (id, f, v) => update(ref(db, `matches/${id}`), { [f]: v });
-    window.deleteMatch = (id) => { if(confirm("Smazat?")) remove(ref(db, `matches/${id}`)); };
-    window.adjustPlayerBalance = (id) => { const v = prompt("+/- TC:"); if(v) update(ref(db, `tips/${id}`), { balance: (state.players[id].balance || 0) + parseInt(v) }); };
-    window.resetPlayer = (id) => { if(confirm("Resetovat hráče?")) update(ref(db, `tips/${id}`), { balance: 2500, bets: null }); };
-    window.deletePlayer = (id) => { if(confirm("Smazat?")) remove(ref(db, `tips/${id}`)); };
+    // --- GLOBÁLNÍ FUNKCE ---
+
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            document.getElementById('intro').classList.add('hidden');
+        }, 1200);
+    });
+
+    window.adminLogin = () => { 
+        if (prompt("Heslo:") === "Acsparta333") document.getElementById("adminPanel").style.display = "block"; 
+    };
+
+    window.addGroup = () => {
+        const n = document.getElementById("newGroupName").value;
+        if(n) set(ref(db, `groups/g${Date.now()}`), { name: n, order: Date.now() });
+    };
+
+    window.deleteGroup = (id) => {
+        if(confirm("Smazat skupinu?")) remove(ref(db, `groups/${id}`));
+    };
+
+    window.addMatch = () => {
+        set(ref(db, `matches/m${Date.now()}`), { 
+            home:"Tým A", away:"Tým B", date:"1.1. 18:00", 
+            group:"none", status:"Plánováno", score:"0:0", closed:false 
+        });
+    };
+
+    window.updateMatch = (id, field, val) => update(ref(db, `matches/${id}`), { [field]: val });
+
+    window.deleteMatch = (id) => {
+        if(confirm("Smazat zápas?")) remove(ref(db, `matches/${id}`));
+    };
+
+    window.modPlayer = (id, field, val) => update(ref(db, `tips/${id}`), { [field]: val });
+
+    window.deletePlayer = (id) => {
+        if(confirm("Opravdu smazat tohoto hráče?")) {
+            remove(ref(db, `tips/${id}`));
+        }
+    };
+
+    window.adjustPlayerBalance = (id) => {
+        const val = prompt("Zadej částku (např. 100 nebo -100):");
+        if (val !== null) {
+            const num = parseInt(val);
+            if (!isNaN(num)) {
+                const cur = state.players[id]?.balance || 0;
+                update(ref(db, `tips/${id}`), { balance: cur + num });
+            }
+        }
+    };
+
+    window.changeMyName = () => {
+        const curName = state.players[state.pId]?.name || "Hráč";
+        const newName = prompt("Zadej své nové jméno:", curName);
+        if (newName) {
+            update(ref(db, `tips/${state.pId}`), { name: newName });
+        }
+    };
 
     window.evaluateMatch = (mId) => {
-        const m = state.matches[mId]; if(m.status !== "Konec") return alert("Musí být stav Konec!");
+        const m = state.matches[mId];
+        if(m.status !== "Konec") return alert("Zápas musí být 'Konec'!");
+        if(!confirm(`Vyhodnotit ${m.home}-${m.away} (${m.score})?`)) return;
+
         Object.keys(state.players).forEach(pId => {
-            const b = state.players[pId]?.bets?.[mId]; if(!b) return;
-            let mult = 0; const [hS, aS] = m.score.split(":").map(Number), [bH, bA] = b.tip.split(":").map(Number);
-            let w = hS > aS ? "1" : (aS > hS ? "2" : "0"), bW = bH > bA ? "1" : (bA > bH ? "2" : "0");
-            if(b.tip === m.score) mult = 3; else if(w === bW) mult = 2;
-            if(mult > 0) update(ref(db, `tips/${pId}`), { balance: (state.players[pId].balance || 0) + (b.stake * mult) });
+            const bet = state.players[pId]?.bets?.[mId];
+            if(!bet) return;
+            let mult = 0;
+            const [hS, aS] = m.score.split(":").map(Number);
+            const [bH, bA] = bet.tip.split(":").map(Number);
+            let win = hS > aS ? "1" : (aS > hS ? "2" : "0");
+            let bWin = bH > bA ? "1" : (bA > bH ? "2" : "0");
+            if(bet.tip === m.score) mult = 3; 
+            else if(bWin === win) mult = 2;
+            if(mult > 0) {
+                const cur = state.players[pId].balance || 0;
+                update(ref(db, `tips/${pId}`), { balance: cur + (bet.stake * mult) });
+            }
             remove(ref(db, `tips/${pId}/bets/${mId}`));
         });
         update(ref(db, `matches/${mId}`), { status: "Dohráno", closed: true });
     };
 
     window.placeBet = (mId) => {
-        const m = state.matches[mId], p = state.players[state.user.uid]; if(m.closed) return;
-        const tip = prompt("Tip (3:2):"); if(!tip || !tip.includes(":")) return;
-        const stake = parseInt(prompt(`Vklad (max ${p.balance}):`)); if(isNaN(stake) || stake <= 0 || stake > p.balance) return;
-        update(ref(db, `tips/${state.user.uid}`), { balance: p.balance - stake });
-        set(ref(db, `tips/${state.user.uid}/bets/${mId}`), { tip, stake });
+        const m = state.matches[mId];
+        if(m.closed) return;
+        const exB = state.players[state.pId]?.bets?.[mId];
+        const tip = prompt(`Tvůj tip:`, exB ? exB.tip : "");
+        if(!tip || !tip.includes(":")) return;
+        let stake = exB ? exB.stake : 0;
+        if(!exB) {
+            const curB = state.players[state.pId]?.balance !== undefined ? state.players[state.pId].balance : 2500;
+            stake = parseInt(prompt(`Vklad (Máš ${curB} TC):`));
+            if(isNaN(stake) || stake <= 0 || stake > curB) return alert("Chyba!");
+            update(ref(db, `tips/${state.pId}`), { balance: curB - stake });
+        }
+        set(ref(db, `tips/${state.pId}/bets/${mId}`), { tip, stake });
     };
 
+    // --- REALTIME DATA ---
+
     onValue(ref(db, "/"), snap => {
-        const d = snap.val() || {}; state.matches = d.matches || {}; state.groups = d.groups || {}; state.players = d.tips || {};
-        renderAdmin(); renderMain();
+        const d = snap.val() || {};
+        state.matches = d.matches || {}; 
+        state.groups = d.groups || {}; 
+        state.players = d.tips || {};
+        renderAdmin(); 
+        renderMain();
     });
 
+    // --- RENDER ---
+
     function renderAdmin() {
-        const gL = document.getElementById("adminGroupsList"); gL.innerHTML = "";
-        Object.keys(state.groups).forEach(id => { gL.innerHTML += `<div>${state.groups[id].name} <button onclick="window.deleteGroup('${id}')" class="btn-danger btn-small">X</button></div>`; });
-        const mL = document.getElementById("adminMatchesList"); mL.innerHTML = "";
-        Object.keys(state.matches).sort().reverse().forEach(id => {
-            const m = state.matches[id]; let gO = `<option value="none">Bez skupiny</option>`;
-            Object.keys(state.groups).forEach(gid => { gO += `<option value="${gid}" ${m.group===gid?'selected':''}>${state.groups[gid].name}</option>`; });
-            mL.innerHTML += `<div class="admin-section">
-                <input onchange="window.updateMatch('${id}','home',this.value)" value="${m.home}"> <input onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}">
-                <select onchange="window.updateMatch('${id}','group',this.value)">${gO}</select>
-                <div style="display:flex"><select onchange="window.updateMatch('${id}','status',this.value)"><option value="Plánováno" ${m.status==='Plánováno'?'selected':''}>Plánováno</option><option value="1. Třetina" ${m.status==='1. Třetina'?'selected':''}>1. Třetina</option><option value="Konec" ${m.status==='Konec'?'selected':''}>Konec</option><option value="Dohráno" ${m.status==='Dohráno'?'selected':''}>Dohráno</option></select>
-                <input onchange="window.updateMatch('${id}','score',this.value)" value="${m.score}" style="width:60px"></div>
-                <button onclick="window.updateMatch('${id}','status','1. Třetina')" class="btn-success">Start zápasu</button>
-                <button onclick="window.evaluateMatch('${id}')" class="btn-gold">Vyhodnotit</button>
-                <button onclick="window.updateMatch('${id}','closed',${!m.closed})" class="btn-alt">${m.closed?'Otevřít':'Zavřít'}</button>
-                <button onclick="window.deleteMatch('${id}')" class="btn-danger">X</button></div>`;
+        const gList = document.getElementById("adminGroupsList"); gList.innerHTML = "";
+        Object.keys(state.groups).forEach(id => {
+            gList.innerHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; background:#1e293b; padding:5px; border-radius:5px;">${state.groups[id].name} <button class="btn-danger" style="padding:2px 8px" onclick="window.deleteGroup('${id}')">X</button></div>`;
         });
-        const pL = document.getElementById("adminPlayersList"); pL.innerHTML = "";
-        Object.keys(state.players).forEach(id => { const p = state.players[id]; pL.innerHTML += `<div>${p.name} (${p.balance}) <button onclick="window.adjustPlayerBalance('${id}')">+/-</button><button onclick="window.resetPlayer('${id}')" class="btn-gold">Reset</button><button onclick="window.deletePlayer('${id}')" class="btn-danger">X</button></div>`; });
+
+        const mList = document.getElementById("adminMatchesList"); mList.innerHTML = "";
+        Object.keys(state.matches).sort().reverse().forEach(id => {
+            const m = state.matches[id];
+            let gOpts = `<option value="none">Bez skupiny</option>`;
+            Object.keys(state.groups).forEach(gid => { gOpts += `<option value="${gid}" ${m.group===gid?'selected':''}>${state.groups[gid].name}</option>`; });
+            mList.innerHTML += `<div style="background:#1e293b; padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid #334155;">
+                <div style="display:flex; gap:5px; margin-bottom:5px;"><input style="width:50%" onchange="window.updateMatch('${id}','home',this.value)" value="${m.home}"><input style="width:50%" onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}"></div>
+                <input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}">
+                <select onchange="window.updateMatch('${id}', 'group', this.value)">${gOpts}</select>
+                ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.updateMatch('${id}','status','1. Třetina'); window.updateMatch('${id}','closed',true)">ZAČÍT ZÁPAS</button>` : 
+                `<div style="display:flex; gap:5px;"><select style="width:60%" onchange="window.updateMatch('${id}','status',this.value)">
+                <option value="1. Třetina" ${m.status==='1. Třetina'?'selected':''}>1. Třetina</option><option value="Po 1. Třetině" ${m.status==='Po 1. Třetině'?'selected':''}>Po 1. Třetině</option><option value="2. Třetina" ${m.status==='2. Třetina'?'selected':''}>2. Třetina</option><option value="Po 2. Třetině" ${m.status==='Po 2. Třetině'?'selected':''}>Po 2. Třetině</option><option value="3. Třetina" ${m.status==='3. Třetina'?'selected':''}>3. Třetina</option><option value="Po 3. Třetině" ${m.status==='Po 3. Třetině'?'selected':''}>Po 3. Třetině</option><option value="Prodloužení" ${m.status==='Prodloužení'?'selected':''}>Prodloužení</option><option value="Po prodloužení" ${m.status==='Po prodloužení'?'selected':''}>Po prodloužení</option><option value="Nájezdy" ${m.status==='Nájezdy'?'selected':''}>Nájezdy</option><option value="Konec" ${m.status==='Konec'?'selected':''}>Konec</option><option value="Dohráno" ${m.status==='Dohráno'?'selected':''}>Dohráno</option></select><input style="width:40%" onchange="window.updateMatch('${id}','score',this.value)" value="${m.score}"></div>`}
+                <div style="margin-top:8px; display:flex; gap:5px;"><button class="${m.status==='Konec'?'btn-gold':'btn-disabled'}" onclick="window.evaluateMatch('${id}')">VYHODNOTIT</button><button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít':'Zavřít'}</button><button class="btn-danger" onclick="window.deleteMatch('${id}')">X</button></div></div>`;
+        });
+
+        const pList = document.getElementById("adminPlayersList"); pList.innerHTML = "";
+        Object.keys(state.players).forEach(id => {
+            const p = state.players[id];
+            pList.innerHTML += `<div style="background:#1e293b; padding:10px; border-radius:8px; margin-bottom:10px;">
+                <b onclick="window.modPlayer('${id}','name', prompt('Jméno:', '${p.name}'))" style="cursor:pointer; color:#3b82f6">${p.name||'Borec'}</b>: ${p.balance||0} TC 
+                <div style="display:flex; gap:5px; margin-top:8px;">
+                    <button style="flex:1" onclick="window.adjustPlayerBalance('${id}')">+/- TC</button>
+                    <button style="flex:1" onclick="window.modPlayer('${id}','balance', 2500)">Reset</button>
+                    <button class="btn-danger" onclick="window.deletePlayer('${id}')">Smazat</button>
+                </div></div>`;
+        });
     }
 
     function renderMain() {
-        if(!state.user || !state.players[state.user.uid]) return;
-        const curP = state.players[state.user.uid];
-        document.getElementById("myBalance").innerText = curP.balance;
-        document.getElementById("displayName").innerText = curP.name;
-        const cont = document.getElementById("matchesContainer"); cont.innerHTML = "";
-        const sG = Object.keys(state.groups).sort((a,b) => state.groups[a].order - state.groups[b].order);
-        [...sG, "none"].forEach(gId => {
-            const gM = Object.keys(state.matches).filter(mid => state.matches[mid].group === gId);
-            if(gM.length === 0) return;
-            let gH = `<div class="group-container"><div class="group-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">${gId==="none"?"Ostatní":state.groups[gId].name} <span>▼</span></div><div class="group-content collapsed">`;
-            gM.forEach(mId => {
-                const m = state.matches[mId], b = curP.bets?.[mId];
-                gH += `<div class="match"><div>${m.date} | ${m.status}</div><div class="teams">${m.home} ${m.status!=='Plánováno'?`<span class="live-score">${m.score}</span>`:'vs'} ${m.away}</div>
-                    ${b ? `<div style="color:#6ee7b7">Tvůj tip: ${b.tip} (${b.stake} TC)</div>` : `<button onclick="window.placeBet('${mId}')" ${m.closed?'disabled':''}>Vsadit</button>`}</div>`;
+        if (!state.pId) return;
+        const container = document.getElementById("matchesContainer"); container.innerHTML = "";
+        const myData = state.players[state.pId] || { balance: 2500, name: "Hráč" };
+        document.getElementById("myBalance").innerText = myData.balance !== undefined ? myData.balance : 2500;
+        document.getElementById("displayName").innerText = myData.name || "Hráč";
+        
+        const sortedGroups = Object.keys(state.groups).sort((a,b) => state.groups[a].order - state.groups[b].order);
+        
+        [...sortedGroups, "none"].forEach(gId => {
+            const gMatches = Object.keys(state.matches).filter(mid => state.matches[mid].group === gId);
+            if(gMatches.length === 0) return;
+            
+            const allFinished = gMatches.every(mId => state.matches[mId].status === 'Dohráno');
+            const gName = gId === "none" ? "Ostatní" : state.groups[gId].name;
+            
+            let gHtml = `
+                <div class="group-container">
+                    <div class="group-header ${allFinished ? 'finished' : ''}" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+                        ${gName} <span>▼</span>
+                    </div>
+                    <div class="group-content collapsed">`;
+            
+            gMatches.forEach(mId => {
+                const m = state.matches[mId]; const myBet = state.players[state.pId]?.bets?.[mId]; const isF = m.status === 'Dohráno';
+                gHtml += `<div class="match"><div class="match-header"><span>${m.date}</span> <span class="status-badge">${m.status}</span></div>
+                        <div class="teams">${m.home} ${m.status !== 'Plánováno' && !isF ? `<span class="live-score">${m.score}</span>` : (isF ? `<span class="live-score" style="background:#059669">${m.score}</span>` : 'vs')} ${m.away}</div>
+                        ${myBet ? `<div onclick="window.placeBet('${mId}')" style="color:#6ee7b7; font-size:13px; cursor:pointer; margin-top:5px;">Tip: ${myBet.tip} (${myBet.stake} TC) ✍️</div>` : 
+                        `<button onclick="window.placeBet('${mId}')" ${m.closed ? 'disabled' : ''} style="width:100%">${m.closed ? 'Zavřeno' : 'Vsadit'}</button>`}</div>`;
             });
-            cont.innerHTML += gH + "</div></div>";
+            container.innerHTML += gHtml + "</div></div>";
         });
+
         const table = document.getElementById("playersTable");
-        let ps = Object.keys(state.players).sort((a,b) => state.players[b].balance - state.players[a].balance);
-        let tH = `<tr><th>#</th><th>Hráč</th><th>TC</th></tr>`;
-        ps.forEach((pid, idx) => { const p = state.players[pid]; tH += `<tr class="${pid===state.user.uid?'my-row':''}"><td>${idx+1}.</td><td>${p.name}</td><td>${p.balance}</td></tr>`; });
-        table.innerHTML = tH;
+        let players = Object.keys(state.players).sort((a,b) => (state.players[b].balance||0) - (state.players[a].balance||0));
+        let hHtml = `<tr><th>#</th><th>Hráč</th><th>TC</th><th>Sázky</th></tr>`;
+        players.forEach((pid, idx) => {
+            const p = state.players[pid]; let bH = "";
+            if(p.bets) { Object.keys(p.bets).forEach(mid => { if(state.matches[mid]) bH += `<span class="bet-info">${state.matches[mid].home.slice(0,3)}-${state.matches[mid].away.slice(0,3)}: ${p.bets[mid].tip}</span>`; }); }
+            hHtml += `<tr class="${pid===state.pId?'my-row':''}"><td>${idx+1}.</td><td>${p.name||'Borec'}</td><td><b>${p.balance||0}</b></td><td>${bH}</td></tr>`;
+        });
+        table.innerHTML = hHtml;
     }
-    window.addEventListener('load', () => setTimeout(() => document.getElementById('intro').classList.add('hidden'), 1000));
 </script>
 </body>
 </html>
