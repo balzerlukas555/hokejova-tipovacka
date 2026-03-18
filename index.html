@@ -156,7 +156,7 @@
             margin: 0 5px; 
         }
 
-        /* --- TABULKA KOMUNITNÍCH SÁZEK --- */
+        /* --- NOVÁ TABULKA KOMUNITNÍCH SÁZEK --- */
         .community-table-wrap {
             width: 100%;
             overflow-x: auto;
@@ -185,7 +185,7 @@
             border-bottom: 1px solid #334155;
         }
 
-        /* --- MOBILNÍ STYL (TAB) --- */
+        /* --- MOBILNÍ STYL PRO KOMUNITNÍ TABULKU (VERZE 1.0) --- */
         @media (max-width: 768px) {
             .community-table-wrap {
                 background: transparent;
@@ -578,7 +578,11 @@
         const header = document.getElementById("commHeader");
         const body = document.getElementById("commBody");
         
-        const activeMids = Object.keys(state.matches).filter(mid => state.matches[mid].status !== "Dohráno");
+        // FILTR: Pouze zápasy, které jsou ZAVŘENÉ (closed: true) a nejsou hotové
+        const activeMids = Object.keys(state.matches).filter(mid => {
+            const m = state.matches[mid];
+            return m.closed === true && m.status !== "Dohráno";
+        });
         
         if(activeMids.length === 0) {
             document.querySelector(".community-table-wrap").style.display = "none";
