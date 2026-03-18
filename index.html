@@ -578,10 +578,13 @@
         const header = document.getElementById("commHeader");
         const body = document.getElementById("commBody");
         
-        // FILTR: Zobrazíme sázky komunity jen pro zápasy, které jsou OTEVŘENÉ (closed: false)
+        // FILTR: 
+        // 1. Zápas je otevřený (closed === false) 
+        // 2. NEBO zápas je uzavřený, ale je LIVE (není "Plánováno" ani "Dohráno")
         const activeMids = Object.keys(state.matches).filter(mid => {
             const m = state.matches[mid];
-            return m.closed === false && m.status !== "Dohráno";
+            const isLive = m.status !== "Plánováno" && m.status !== "Dohráno";
+            return (m.closed === false) || (m.closed === true && isLive);
         });
         
         if(activeMids.length === 0) {
@@ -594,7 +597,10 @@
         let hHtml = `<tr><th>Hráč</th>`;
         activeMids.forEach(mid => {
             const m = state.matches[mid];
-            hHtml += `<th>${m.home.slice(0,3)}-${m.away.slice(0,3)}</th>`;
+            const isLive = m.status !== "Plánováno" && m.status !== "Dohráno";
+            // Pokud je Live, přidáme k názvu týmu (LIVE) a třeba ohraničení
+            const liveTag = isLive ? `<br><span style="color:#ef4444; font-size:10px;">LIVE</span>` : "";
+            hHtml += `<th style="${isLive ? 'border: 1px solid #ef4444;' : ''}">${m.home.slice(0,3)}-${m.away.slice(0,3)}${liveTag}</th>`;
         });
         hHtml += `</tr>`;
         header.innerHTML = hHtml;
@@ -606,8 +612,9 @@
             activeMids.forEach(mid => {
                 const bet = p.bets?.[mid];
                 const m = state.matches[mid];
-                const label = `${m.home.slice(0,3)}-${m.away.slice(0,3)}`;
-                bHtml += `<td data-label="${label}">${bet ? bet.tip : '-'}</td>`;
+                const isLive = m.status !== "Plánováno" && m.status !== "Dohráno";
+                const label = `${m.home.slice(0,3)}-${m.away.slice(0,3)}${isLive ? ' (LIVE)' : ''}`;
+                bHtml += `<td data-label="${label}" style="${isLive ? 'background: rgba(239, 68, 68, 0.1);' : ''}">${bet ? bet.tip : '-'}</td>`;
             });
             bHtml += `</tr>`;
         });
