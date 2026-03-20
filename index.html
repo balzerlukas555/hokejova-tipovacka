@@ -83,7 +83,7 @@
             gap: 10px;
         }
 
-        /* --- STYLY PRO HISTORII (NOVÉ) --- */
+        /* --- STYLY PRO HISTORII --- */
         .hist-table { width: 100%; border-collapse: separate; border-spacing: 0 5px; margin-top: 15px; font-size: 12px; }
         .hist-row-gold { background: linear-gradient(90deg, #d97706, #b45309); color: white; font-weight: bold; }
         .hist-row-win { background: #059669; color: white; }
@@ -165,7 +165,7 @@
             margin: 0 5px; 
         }
 
-        /* --- NOVÁ TABULKA KOMUNITNÍCH SÁZEK --- */
+        /* --- TABULKA KOMUNITNÍCH SÁZEK --- */
         .community-table-wrap {
             width: 100%;
             overflow-x: auto;
@@ -194,7 +194,7 @@
             border-bottom: 1px solid #334155;
         }
 
-        /* --- MOBILNÍ STYL PRO KOMUNITNÍ TABULKU (VERZE 1.0) --- */
+        /* --- MOBILNÍ ÚPRAVA TABULKY --- */
         @media (max-width: 768px) {
             .community-table-wrap {
                 background: transparent;
@@ -505,7 +505,6 @@
         if(confirm("Smazat zápas?")) remove(ref(db, `matches/${id}`));
     };
 
-    // NOVÉ: SMAZAT VŠECHNY ZÁPASY
     window.deleteAllMatches = () => {
         if(confirm("OPRAVDU SMAZAT VŠECHNY ZÁPASY ZE SLOŽKY MATCHES?")) {
             remove(ref(db, `matches`));
@@ -520,7 +519,6 @@
         }
     };
 
-    // NOVÉ: SMAZAT HISTORII HRÁČE
     window.deletePlayerHistory = (id) => {
         if(confirm("Opravdu smazat celou historii zápasů tohoto hráče?")) {
             remove(ref(db, `tips/${id}/history`));
@@ -546,7 +544,7 @@
         }
     };
 
-    // --- UPRAVENÁ FUNKCE EVALUATE ---
+    // --- FUNKCE EVALUATE ---
     window.evaluateMatch = (mId) => {
         const m = state.matches[mId];
         if(m.status !== "Konec" && m.status !== "Dohráno") return alert("Zápas musí být 'Konec'!");
@@ -566,7 +564,6 @@
             if(bet.tip === m.score) mult = 3; 
             else if(bWin === win) mult = 2;
 
-            // ZÁPIS DO HISTORIE
             const historyRef = ref(db, `tips/${pId}/history/h${mId}`);
             set(historyRef, {
                 match: `${m.home.slice(0,3)}-${m.away.slice(0,3)}`,
@@ -701,7 +698,7 @@
         document.getElementById("myBalance").innerText = myData.balance !== undefined ? myData.balance : 2500;
         document.getElementById("displayName").innerText = myData.name || "Hráč";
         
-        // RENDER HISTORIE (TABULKA POSLEDNÍCH 3)
+        // RENDER HISTORIE
         let histHtml = '<table class="hist-table">';
         const history = myData.history || {};
         const lastThree = Object.values(history).sort((a,b) => b.time - a.time).slice(0,3);
