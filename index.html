@@ -390,6 +390,8 @@
     <div id="appUI" style="display:none">
         <h1>Tipovačka</h1>
         
+        <div id="specialBetUI"></div>
+        
         <div class="wallet-card">
             <div class="name-tag">
                 <span id="displayName">Načítám...</span>
@@ -403,8 +405,6 @@
         </div>
 
         <div id="mainContent">
-            <div id="specialBetUI"></div>
-
             <div id="matchesContainer">Načítám zápasy...</div>
             
             <div class="community-table-wrap">
@@ -545,7 +545,6 @@
 
     window.updateMatch = (id, field, val) => update(ref(db, `matches/${id}`), { [field]: val });
 
-    // NOVÉ: Funkce pro změnu skóre tlačítky
     window.changeScore = (id, teamIdx, delta) => {
         const m = state.matches[id];
         let parts = m.score.split(":").map(Number);
@@ -553,7 +552,6 @@
         window.updateMatch(id, 'score', parts.join(":"));
     };
 
-    // NOVÉ: Speciální sázka Admin funkce
     window.setSpecialBet = () => {
         const text = document.getElementById("specBetText").value;
         const reward = document.getElementById("specBetReward").value;
@@ -670,7 +668,7 @@
         state.matches = d.matches || {}; 
         state.groups = d.groups || {}; 
         state.players = d.tips || {};
-        state.specialBet = d.specialBet || null; // Nové
+        state.specialBet = d.specialBet || null;
         renderAdmin(); 
         renderMain();
         renderCommunityTable();
@@ -733,7 +731,6 @@
             let gOpts = `<option value="none">Bez skupiny</option>`;
             Object.keys(state.groups).forEach(gid => { gOpts += `<option value="${gid}" ${m.group===gid?'selected':''}>${state.groups[gid].name}</option>`; });
             
-            // Rozdělení skóre pro tlačítka
             const [sH, sA] = m.score.split(":").map(Number);
 
             mList.innerHTML += `<div style="background:#1e293b; padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid #334155;">
@@ -787,17 +784,18 @@
     function renderMain() {
         if (!state.pId) return;
         
-        // RENDER SPECIÁLNÍ SÁZKY PRO HRÁČE
         const specDiv = document.getElementById("specialBetUI");
-        if(state.specialBet && state.specialBet.active) {
-            specDiv.innerHTML = `
-                <div class="special-bet-card">
-                    <div style="color:#3b82f6; font-size:12px; font-weight:bold; text-transform:uppercase; margin-bottom:5px;">⚡ Speciální sázka</div>
-                    <div style="font-size:16px; font-weight:bold; margin-bottom:5px;">${state.specialBet.text}</div>
-                    <div style="color:#6ee7b7; font-size:14px;">Odměna: ${state.specialBet.reward} TC</div>
-                </div>`;
-        } else {
-            specDiv.innerHTML = "";
+        if(specDiv) {
+            if(state.specialBet && state.specialBet.active) {
+                specDiv.innerHTML = `
+                    <div class="special-bet-card" style="margin-bottom: 20px;">
+                        <div style="color:#3b82f6; font-size:12px; font-weight:bold; text-transform:uppercase; margin-bottom:5px;"Speciální sázka</div>
+                        <div style="font-size:16px; font-weight:bold; margin-bottom:5px;">${state.specialBet.text}</div>
+                        <div style="color:#6ee7b7; font-size:14px;">Odměna: ${state.specialBet.reward} TC</div>
+                    </div>`;
+            } else {
+                specDiv.innerHTML = "";
+            }
         }
 
         const container = document.getElementById("matchesContainer"); container.innerHTML = "";
