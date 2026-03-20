@@ -165,6 +165,37 @@
             margin: 0 5px; 
         }
 
+        /* --- SPECIÁLNÍ SÁZKA UI --- */
+        .special-bet-card {
+            background: linear-gradient(135deg, #1e294b 0%, #0f172a 100%);
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px auto;
+            max-width: 450px;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+            animation: pulse-border 2s infinite;
+        }
+        @keyframes pulse-border {
+            0% { border-color: #3b82f6; }
+            50% { border-color: #60a5fa; }
+            100% { border-color: #3b82f6; }
+        }
+
+        /* --- ADMIN SCORE CONTROLS --- */
+        .score-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin: 10px 0;
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .score-num { font-size: 24px; font-weight: bold; min-width: 30px; text-align: center; }
+        .btn-score { width: 40px; height: 40px; font-size: 20px; padding: 0; line-height: 1; }
+
         /* --- TABULKA KOMUNITNÍCH SÁZEK --- */
         .community-table-wrap {
             width: 100%;
@@ -372,6 +403,8 @@
         </div>
 
         <div id="mainContent">
+            <div id="specialBetUI"></div>
+
             <div id="matchesContainer">Načítám zápasy...</div>
             
             <div class="community-table-wrap">
@@ -390,6 +423,17 @@
 
         <div id="adminPanel" class="admin">
             <h2 style="text-align:center">Admin Panel</h2>
+
+            <div class="admin-section">
+                <h3>Speciální sázka</h3>
+                <input id="specBetText" placeholder="Text sázky (např. Kdo dá další gól?)">
+                <input id="specBetReward" placeholder="Odměna (např. 500 TC)" type="number">
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <button onclick="window.setSpecialBet()" class="btn-success" style="flex:1">Vyhlásit</button>
+                    <button onclick="window.removeSpecialBet()" class="btn-danger" style="flex:1">Zrušit</button>
+                </div>
+            </div>
+
             <div class="admin-section">
                 <h3>Správa skupin</h3>
                 <div style="display:flex; gap:5px;">
@@ -431,7 +475,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { matches: {}, groups: {}, players: {}, pId: null };
+    let state = { matches: {}, groups: {}, players: {}, pId: null, specialBet: null };
 
     // --- AUTH FUNKCE ---
     window.toggleAuth = (showReg) => {
@@ -500,6 +544,26 @@
     };
 
     window.updateMatch = (id, field, val) => update(ref(db, `matches/${id}`), { [field]: val });
+
+    // NOVÉ: Funkce pro změnu skóre tlačítky
+    window.changeScore = (id, teamIdx, delta) => {
+        const m = state.matches[id];
+        let parts = m.score.split(":").map(Number);
+        parts[teamIdx] = Math.max(0, parts[teamIdx] + delta);
+        window.updateMatch(id, 'score', parts.join(":"));
+    };
+
+    // NOVÉ: Speciální sázka Admin funkce
+    window.setSpecialBet = () => {
+        const text = document.getElementById("specBetText").value;
+        const reward = document.getElementById("specBetReward").value;
+        if(!text) return alert("Zadej text sázky!");
+        set(ref(db, "specialBet"), { text, reward, active: true });
+    };
+
+    window.removeSpecialBet = () => {
+        remove(ref(db, "specialBet"));
+    };
 
     window.deleteMatch = (id) => {
         if(confirm("Smazat zápas?")) remove(ref(db, `matches/${id}`));
@@ -606,6 +670,7 @@
         state.matches = d.matches || {}; 
         state.groups = d.groups || {}; 
         state.players = d.tips || {};
+        state.specialBet = d.specialBet || null; // Nové
         renderAdmin(); 
         renderMain();
         renderCommunityTable();
@@ -667,14 +732,42 @@
             const m = state.matches[id];
             let gOpts = `<option value="none">Bez skupiny</option>`;
             Object.keys(state.groups).forEach(gid => { gOpts += `<option value="${gid}" ${m.group===gid?'selected':''}>${state.groups[gid].name}</option>`; });
+            
+            // Rozdělení skóre pro tlačítka
+            const [sH, sA] = m.score.split(":").map(Number);
+
             mList.innerHTML += `<div style="background:#1e293b; padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid #334155;">
                 <div style="display:flex; gap:5px; margin-bottom:5px;"><input style="width:50%" onchange="window.updateMatch('${id}','home',this.value)" value="${m.home}"><input style="width:50%" onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}"></div>
                 <input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}">
                 <select onchange="window.updateMatch('${id}', 'group', this.value)">${gOpts}</select>
+                
                 ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.updateMatch('${id}','status','1. Třetina'); window.updateMatch('${id}','closed',true)">ZAČÍT ZÁPAS</button>` : 
-                `<div style="display:flex; gap:5px;"><select style="width:60%" onchange="window.updateMatch('${id}','status',this.value)">
-                <option value="1. Třetina" ${m.status==='1. Třetina'?'selected':''}>1. Třetina</option><option value="Po 1. Třetině" ${m.status==='Po 1. Třetině'?'selected':''}>Po 1. Třetině</option><option value="2. Třetina" ${m.status==='2. Třetina'?'selected':''}>2. Třetina</option><option value="Po 2. Třetině" ${m.status==='Po 2. Třetině'?'selected':''}>Po 2. Třetině</option><option value="3. Třetina" ${m.status==='3. Třetina'?'selected':''}>3. Třetina</option><option value="Po 3. Třetině" ${m.status==='Po 3. Třetině'?'selected':''}>Po 3. Třetině</option><option value="Prodloužení" ${m.status==='Prodloužení'?'selected':''}>Prodloužení</option><option value="Po prodloužení" ${m.status==='Po prodloužení'?'selected':''}>Po prodloužení</option><option value="Nájezdy" ${m.status==='Nájezdy'?'selected':''}>Nájezdy</option><option value="Konec" ${m.status==='Konec'?'selected':''}>Konec</option><option value="Dohráno" ${m.status==='Dohráno'?'selected':''}>Dohráno</option></select><input style="width:40%" onchange="window.updateMatch('${id}','score',this.value)" value="${m.score}"></div>`}
-                <div style="margin-top:8px; display:flex; gap:5px;"><button class="${m.status==='Konec'?'btn-gold':'btn-disabled'}" onclick="window.evaluateMatch('${id}')">VYHODNOTIT</button><button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít':'Zavřít'}</button><button class="btn-danger" onclick="window.deleteMatch('${id}')">X</button></div></div>`;
+                `<div>
+                    <select style="width:100%" onchange="window.updateMatch('${id}','status',this.value)">
+                        <option value="1. Třetina" ${m.status==='1. Třetina'?'selected':''}>1. Třetina</option><option value="Po 1. Třetině" ${m.status==='Po 1. Třetině'?'selected':''}>Po 1. Třetině</option><option value="2. Třetina" ${m.status==='2. Třetina'?'selected':''}>2. Třetina</option><option value="Po 2. Třetině" ${m.status==='Po 2. Třetině'?'selected':''}>Po 2. Třetině</option><option value="3. Třetina" ${m.status==='3. Třetina'?'selected':''}>3. Třetina</option><option value="Po 3. Třetině" ${m.status==='Po 3. Třetině'?'selected':''}>Po 3. Třetině</option><option value="Prodloužení" ${m.status==='Prodloužení'?'selected':''}>Prodloužení</option><option value="Po prodloužení" ${m.status==='Po prodloužení'?'selected':''}>Po prodloužení</option><option value="Nájezdy" ${m.status==='Nájezdy'?'selected':''}>Nájezdy</option><option value="Konec" ${m.status==='Konec'?'selected':''}>Konec</option><option value="Dohráno" ${m.status==='Dohráno'?'selected':''}>Dohráno</option>
+                    </select>
+                    
+                    <div class="score-control">
+                        <div style="text-align:center">
+                            <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 0, -1)">-</button>
+                            <span class="score-num">${sH}</span>
+                            <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 0, 1)">+</button>
+                        </div>
+                        <span style="font-size:20px">:</span>
+                        <div style="text-align:center">
+                            <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 1, -1)">-</button>
+                            <span class="score-num">${sA}</span>
+                            <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 1, 1)">+</button>
+                        </div>
+                    </div>
+                </div>`}
+                
+                <div style="margin-top:8px; display:flex; gap:5px;">
+                    <button class="${m.status==='Konec'?'btn-gold':'btn-disabled'}" onclick="window.evaluateMatch('${id}')">VYHODNOTIT</button>
+                    <button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít':'Zavřít'}</button>
+                    <button class="btn-danger" onclick="window.deleteMatch('${id}')">X</button>
+                </div>
+            </div>`;
         });
 
         const pList = document.getElementById("adminPlayersList"); pList.innerHTML = "";
@@ -693,6 +786,20 @@
 
     function renderMain() {
         if (!state.pId) return;
+        
+        // RENDER SPECIÁLNÍ SÁZKY PRO HRÁČE
+        const specDiv = document.getElementById("specialBetUI");
+        if(state.specialBet && state.specialBet.active) {
+            specDiv.innerHTML = `
+                <div class="special-bet-card">
+                    <div style="color:#3b82f6; font-size:12px; font-weight:bold; text-transform:uppercase; margin-bottom:5px;">⚡ Speciální sázka</div>
+                    <div style="font-size:16px; font-weight:bold; margin-bottom:5px;">${state.specialBet.text}</div>
+                    <div style="color:#6ee7b7; font-size:14px;">Odměna: ${state.specialBet.reward} TC</div>
+                </div>`;
+        } else {
+            specDiv.innerHTML = "";
+        }
+
         const container = document.getElementById("matchesContainer"); container.innerHTML = "";
         const myData = state.players[state.pId] || { balance: 2500, name: "Hráč" };
         document.getElementById("myBalance").innerText = myData.balance !== undefined ? myData.balance : 2500;
