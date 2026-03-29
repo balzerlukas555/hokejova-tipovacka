@@ -16,7 +16,6 @@
     <script src="https://cdn-onesignal.com/sdks/web/v16/OneSignal.js" async=""></script>
     <script>
       window.OneSignal = window.OneSignal || [];
-      // Inicializace proběhne až po načtení klíče z Firebase (viz script níže)
     </script>
     
     <style>
@@ -709,18 +708,22 @@
     // NAČTENÍ KONFIGURACE (OneSignal Klíče)
     onValue(ref(db, "config"), (snapshot) => {
         const cfg = snapshot.val();
-        if (cfg) {
+        if (cfg && cfg.onesignal_app_id) {
             state.config = cfg;
-            // Inicializace OneSignal po načtení klíče
-            if (window.OneSignal && cfg.onesignal_app_id) {
-                OneSignal.push(function() {
-                    OneSignal.init({
-                        appId: cfg.onesignal_app_id,
-                        allowLocalhostAsSecureOrigin: true,
-                        notifyButton: { enable: true, position: 'bottom-left' },
-                    });
+            
+            // Inicializace OneSignal kompatibilní s iOS/PWA
+            OneSignal.push(async function() {
+                await OneSignal.init({
+                    appId: cfg.onesignal_app_id,
+                    allowLocalhostAsSecureOrigin: true,
+                    notifyButton: { enable: false },
                 });
-            }
+                
+                // Automaticky vyzve k povolení, pokud ještě není uděleno
+                if (OneSignal.Notifications.permission === false || OneSignal.Notifications.permission === "default") {
+                    await OneSignal.Notifications.requestPermission();
+                }
+            });
         }
     });
 
