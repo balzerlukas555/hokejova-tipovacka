@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mezi Kozy - Tipovačka</title>
+
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/8294/8294512.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/8294/8294512.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0b4d1a">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <style>
+        :root {
+            --primary-green: #0b4d1a;
+            --gold: #ffd700;
+            --card-w: 85px;
+            --card-h: 140px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--primary-green);
+            color: white;
+            text-align: center;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- AUTH UI --- */
+        #authContainer { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: #0b4d1a; 
+            z-index: 9998; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+
+        .auth-box { 
+            background: #fdfdfd; 
+            padding: 25px; 
+            border-radius: 15px; 
+            width: 90%; 
+            max-width: 320px; 
+            color: #222;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        /* --- SCREENS --- */
+        #startScreen, #endScreen {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.95);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .card-ui {
+            background: #fdfdfd;
+            color: #222;
+            padding: 20px;
+            border-radius: 15px;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        .dashboard {
+            background: #e2e8f0;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+            color: #1e293b;
+        }
+
+        .btn-main {
+            width: 100%;
+            padding: 12px;
+            background: #c40000;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .btn-transfer {
+            background: #0b4d1a;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            margin-top: 5px;
+            cursor: pointer;
+        }
+
+        #settingsBox {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            display: none;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0 12px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        #playersRow {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px;
+            background: rgba(0,0,0,0.4);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .player-box {
+            padding: 5px;
+            background: #1a1a1a;
+            border-radius: 6px;
+            min-width: 65px;
+            border: 1px solid transparent;
+            font-size: 0.7rem;
+        }
+
+        .active-player { border-color: var(--gold); color: var(--gold); }
+
+        #gameArea {
+            flex: 1;
+            padding-bottom: 120px;
+        }
+
+        #potArea { margin: 10px 0; font-size: 1rem; color: var(--gold); }
+        #msg { height: 3.5em; font-weight: bold; font-size: 0.85rem; color: var(--gold); margin-bottom: 10px; padding: 0 10px; display: flex; align-items: center; justify-content: center; }
+
+        .player-row-ui {
+            background: rgba(255,255,255,0.05);
+            margin: 5px auto;
+            padding: 6px;
+            width: 92%;
+            border-radius: 10px;
+        }
+
+        .card-row {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .card img {
+            width: var(--card-w);
+            height: var(--card-h);
+            border-radius: 5px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+        }
+
+        .shuffling { animation: shake 0.4s infinite; }
+        @keyframes shake {
+            0% { transform: rotate(0); }
+            50% { transform: rotate(1deg); }
+        }
+
+        #actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0,0,0,0.9);
+            padding: 10px 0;
+            backdrop-filter: blur(8px);
+            display: none;
+            z-index: 60;
+            border-top: 1px solid rgba(255,215,0,0.2);
+        }
+
+        .game-btn {
+            padding: 10px 14px;
+            font-size: 0.75rem;
+            margin: 3px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        #nextBtn {
+            background: #c40000;
+            color: white;
+            width: 160px;
+            margin: 10px auto;
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            :root {
+                --card-w: 22vw;
+                --card-h: 36vw;
+            }
+            .player-box { min-width: 20vw; font-size: 0.65rem; }
+            .game-btn { padding: 8px 10px; font-size: 0.7rem; }
+            #potArea { font-size: 0.9rem; }
+            #msg { font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="authContainer">
+    <div class="auth-box" style="text-align: center;">
+        <h2 style="color:var(--primary-green); margin:0 0 20px 0; font-size: 1.8rem;">Mezi Kozy</h2>
+        
+        <div id="loginFields" style="text-align: left;">
+            <p style="font-size: 0.75rem; color: #666; margin-bottom: 10px; text-align: center;">Přihlášením hraješ o Tip-Coiny v Tipovačce</p>
+            <label style="font-size: 0.7rem; color: #888; margin-left: 5px;">E-mail z Tipovačky</label>
+            <input type="email" id="email" placeholder="Zadejte váš E-mail." style="margin-bottom: 10px;">
+            <label style="font-size: 0.7rem; color: #888; margin-left: 5px;">Heslo</label>
+            <input type="password" id="pass" placeholder="••••••••">
+            <button id="authBtn" class="btn-main" style="background:var(--primary-green); margin-top: 5px;">VSTOUPIT</button>
+        </div>
+    </div>
+</div>
+
+<div id="startScreen" style="display:none;">
+    <div class="card-ui">
+        <div class="dashboard">
+            <div style="margin-bottom:5px">Hráč: <strong id="userDisplay">...</strong></div>
+            <div>Trezor: <strong id="vaultDisplay">0</strong> Coinů</div>
+            <div>Tipovačka: <strong id="tcDisplay">0</strong> TC</div>
+            <button class="btn-transfer" onclick="window.transferMoney()">PŘEVÉST DO TIPOVAČKY (20:1)</button>
+        </div>
+        
+        <button id="startBtn" class="btn-main">HRÁT KOZY</button>
+        
+        <div id="settingsToggle" onclick="document.getElementById('settingsBox').style.display='block'" style="margin-top:10px; font-size:0.75rem; color:#888; cursor:pointer;">⚙️ Nastavení hry</div>
+        <div id="settingsBox">
+            <label>Počet soupeřů:</label>
+            <select id="npcCount">
+                <option value="1">1 Protihráč</option>
+                <option value="2" selected>2 Protihráči</option>
+                <option value="3">3 Protihráči</option>
+            </select>
+            <label>Počáteční vklad (Coiny):</label>
+            <select id="startMoney">
+                <option value="500">500 Coinů</option>
+                <option value="1000" selected>1000 Coinů</option>
+            </select>
+        </div>
+        <button onclick="window.logout()" style="margin-top:15px; background:transparent; border:none; color:#666; cursor:pointer; font-size:0.7rem;">Odhlásit se</button>
+    </div>
+</div>
+
+<div id="endScreen" style="display:none;">
+    <div class="card-ui">
+        <h1 id="endTitle"></h1>
+        <p id="endMsg"></p>
+        <button id="finishBtn" class="btn-main">ULOŽIT A KONEC</button>
+    </div>
+</div>
+
+<div id="game" style="display:none;">
+    <div id="playersRow"></div>
+    <div id="gameArea">
+        <div id="potArea">BANK: <strong id="pot">0</strong> C</div>
+        <div id="msg"></div>
+        <div id="cardsArea"></div>
+        <button id="nextBtn" class="game-btn">DALŠÍ KOLO</button>
+    </div>
+    <div id="actions">
+        <div style="margin-bottom:8px;">
+            <span style="font-size:0.7rem; opacity:0.8;">SÁZKA:</span>
+            <input type="number" id="bet" value="50" min="10" step="10" style="width:60px; padding:5px; margin:0; display:inline-block; height:30px;">
+        </div>
+        <button id="playBtn" class="game-btn" style="background:#c40000; color:white;">HRÁT</button>
+        <button id="allInBtn" class="game-btn" style="background:var(--gold); color:black;">ALL-IN</button>
+        <button id="passBtn" class="game-btn" style="background:#666; color:white;">PAS</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
+        authDomain: "tipovacka-fce0e.firebaseapp.com",
+        databaseURL: "https://tipovacka-fce0e-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "tipovacka-fce0e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    let userUid = null;
+    let userData = null;
+
+    const IMAGE_URLS = {
+        "7_K": "https://hra-lora.cz/assets/cardsmini/7_d.jpg", "8_K": "https://hra-lora.cz/assets/cardsmini/8_d.jpg", "9_K": "https://hra-lora.cz/assets/cardsmini/9_d.jpg", "10_K": "https://hra-lora.cz/assets/cardsmini/t_d.jpg", "J_K": "https://hra-lora.cz/assets/cardsmini/j_d.jpg", "Q_K": "https://hra-lora.cz/assets/cardsmini/q_d.jpg", "K_K": "https://hra-lora.cz/assets/cardsmini/k_d.jpg", "A_K": "https://hra-lora.cz/assets/cardsmini/a_d.jpg",
+        "7_Z": "https://hra-lora.cz/assets/cardsmini/7_s.jpg", "8_Z": "https://hra-lora.cz/assets/cardsmini/8_s.jpg", "9_Z": "https://hra-lora.cz/assets/cardsmini/9_s.jpg", "10_Z": "https://hra-lora.cz/assets/cardsmini/t_s.jpg", "J_Z": "https://hra-lora.cz/assets/cardsmini/j_s.jpg", "Q_Z": "https://hra-lora.cz/assets/cardsmini/q_s.jpg", "K_Z": "https://hra-lora.cz/assets/cardsmini/k_s.jpg", "A_Z": "https://hra-lora.cz/assets/cardsmini/a_s.jpg",
+        "7_C": "https://hra-lora.cz/assets/cardsmini/7_h.jpg", "8_C": "https://hra-lora.cz/assets/cardsmini/8_h.jpg", "9_C": "https://hra-lora.cz/assets/cardsmini/9_h.jpg", "10_C": "https://hra-lora.cz/assets/cardsmini/t_h.jpg", "J_C": "https://hra-lora.cz/assets/cardsmini/j_h.jpg", "Q_C": "https://hra-lora.cz/assets/cardsmini/q_h.jpg", "K_C": "https://hra-lora.cz/assets/cardsmini/k_h.jpg", "A_C": "https://hra-lora.cz/assets/cardsmini/a_h.jpg",
+        "7_ZL": "https://hra-lora.cz/assets/cardsmini/7_c.jpg", "8_ZL": "https://hra-lora.cz/assets/cardsmini/8_c.jpg", "9_ZL": "https://hra-lora.cz/assets/cardsmini/9_c.jpg", "10_ZL": "https://hra-lora.cz/assets/cardsmini/t_c.jpg", "J_ZL": "https://hra-lora.cz/assets/cardsmini/j_c.jpg", "Q_ZL": "https://hra-lora.cz/assets/cardsmini/q_c.jpg", "K_ZL": "https://hra-lora.cz/assets/cardsmini/k_c.jpg", "A_ZL": "https://hra-lora.cz/assets/cardsmini/a_c.jpg"
+    };
+
+    const ranks = ["7", "8", "9", "10", "J", "Q", "K", "A"];
+    const suits = ["Z", "C", "K", "ZL"];
+    const names = ["Pepa", "Martin", "Karel", "Honza"];
+
+    let state = { deck: [], pot: 0, players: [], currentTurn: null };
+    let isFirstRound = true;
+    let someoneBetThisRound = false;
+
+    const $ = id => document.getElementById(id);
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+
+    // --- AUTH LOGIKA ---
+
+    document.getElementById('authBtn').onclick = () => {
+        const email = $('email').value;
+        const pass = $('pass').value;
+        signInWithEmailAndPassword(auth, email, pass).catch(err => alert("Chyba: " + err.message));
+    };
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            userUid = user.uid;
+            onValue(ref(db, `tips/${userUid}`), (snap) => {
+                userData = snap.val();
+                if (userData) {
+                    $('userDisplay').innerText = userData.name || "Hráč";
+                    $('vaultDisplay').innerText = userData.coins || 0;
+                    $('tcDisplay').innerText = userData.balance || 0;
+                    $('authContainer').style.display = 'none';
+                    $('startScreen').style.display = 'flex';
+                }
+            });
+        } else {
+            $('authContainer').style.display = 'flex';
+            $('startScreen').style.display = 'none';
+        }
+    });
+
+    window.logout = () => signOut(auth);
+
+    window.transferMoney = () => {
+        const coins = userData.coins || 0;
+        const kurz = 20; 
+        
+        if (coins < kurz) return alert(`Musíš mít aspoň ${kurz} Coinů pro převod!`);
+        
+        const input = prompt(`Kolik Coinů chceš převést? (Kurz ${kurz}:1)\nAktuálně máš: ${coins}`, coins);
+        const amount = parseInt(input);
+        
+        if (isNaN(amount) || amount < kurz || amount > coins) return alert("Neplatná částka!");
+        
+        const tipAdded = Math.floor(amount / kurz); 
+        const usedCoins = tipAdded * kurz;
+        const remainingVault = coins - usedCoins;
+        
+        update(ref(db, `tips/${userUid}`), {
+            balance: (userData.balance || 0) + tipAdded,
+            coins: remainingVault
+        }).then(() => {
+            alert(`Převedeno! Získal jsi ${tipAdded} TC.\nV trezoru ti zůstalo ${remainingVault} Coinů.`);
+        });
+    };
+
+    // --- HERNÍ LOGIKA ---
+
+    function createDeck() {
+        let deck = [];
+        for (let s of suits) for (let r of ranks) deck.push({ suit: s, rank: r });
+        return deck.sort(() => Math.random() - 0.5);
+    }
+
+    function startGame() {
+        let money = parseInt($('startMoney').value) || 1000;
+        let nNpc = parseInt($('npcCount').value);
+        
+        state.players = [{ name: userData.name || "Ty", bal: money, isNPC: false }];
+        
+        for(let i=0; i<nNpc; i++) {
+            state.players.push({ name: names[i], bal: money, isNPC: true });
+        }
+        
+        $('startScreen').style.display = 'none';
+        $('game').style.display = 'block';
+        startRound();
+    }
+
+    async function startRound() {
+        if (state.players[0].bal <= 0) return showEnd(false);
+        if (state.players.slice(1).every(p => p.bal <= 0)) return showEnd(true);
+        $('nextBtn').style.display = 'none';
+        someoneBetThisRound = false;
+
+        if (state.pot <= 0 || isFirstRound) {
+            state.players.forEach(p => { 
+                if(p.bal > 0) { 
+                    let take = Math.min(p.bal, 50); 
+                    p.bal -= take; 
+                    state.pot += take; 
+                }
+            });
+            isFirstRound = false;
+        }
+
+        renderCardsArea();
+        updateUI();
+        const rows = document.querySelectorAll('.player-row-ui');
+        rows.forEach(r => r.classList.add('shuffling'));
+        $('msg').innerText = "Míchám karty...";
+        await delay(1000);
+        rows.forEach(r => r.classList.remove('shuffling'));
+        state.deck = createDeck();
+
+        for (let i = 0; i < state.players.length; i++) {
+            if (state.players[i].bal <= 0) continue;
+            state.currentTurn = i;
+            updateUI();
+            await runTurn(i);
+            if (state.pot <= 0) break;
+        }
+
+        if (!someoneBetThisRound && state.pot > 0) {
+            $('msg').innerText = "Nikdo nevsadil! Všichni povinně přihazují 50 C.";
+            await delay(1800);
+            state.players.forEach(p => { 
+                if(p.bal > 0) { 
+                    let take = Math.min(p.bal, 50); 
+                    p.bal -= take; 
+                    state.pot += take; 
+                }
+            });
+        }
+
+        state.currentTurn = null;
+        updateUI();
+        $('nextBtn').style.display = 'block';
+    }
+
+    async function runTurn(idx) {
+        let p = state.players[idx];
+        let c1 = state.deck.pop(), c2 = state.deck.pop();
+        drawCardImg(`p${idx}_c1`, c1); drawCardImg(`p${idx}_c2`, c2);
+        await delay(600);
+
+        if (c1.rank === c2.rank) {
+            if (c1.rank === "A") {
+                p.bal += state.pot; state.pot = 0;
+                $('msg').innerText = `${p.name} má ESA a vybírá celý BANK!`;
+            } else {
+                p.bal = Math.max(0, p.bal - 50); 
+                state.pot += 50;
+                $('msg').innerText = `${p.name} má stejné karty (${c1.rank}) - platí 50.`;
+            }
+            updateUI(); await delay(1500); return;
+        }
+
+        if (p.isNPC) {
+            let v1 = ranks.indexOf(c1.rank), v2 = ranks.indexOf(c2.rank);
+            let gap = Math.abs(v1 - v2) - 1; 
+            let chance = 0;
+            if (gap >= 6) chance = 0.85; 
+            else if (gap >= 4) chance = 0.50; 
+            else if (gap >= 2) chance = 0.20; 
+
+            if (Math.random() < chance) {
+                let finalBet = 0;
+                if (gap >= 5 && Math.random() > 0.7 && p.bal <= state.pot) {
+                    finalBet = p.bal;
+                    $('msg').innerText = `${p.name} dává ALL-IN!`;
+                } else {
+                    finalBet = Math.min(Math.floor((gap / 7) * state.pot * 0.7), p.bal, state.pot);
+                    finalBet = Math.max(finalBet, 10);
+                }
+                
+                finalBet = Math.round(finalBet / 10) * 10;
+                await evalCard(p, idx, c1, c2, finalBet);
+            } else {
+                $('msg').innerText = `${p.name} pasuje.`;
+                await delay(700);
+            }
+        } else {
+            await new Promise(res => {
+                $('actions').style.display = 'block';
+                $('playBtn').onclick = async () => {
+                    let b = Math.min(parseInt($('bet').value), p.bal, state.pot);
+                    $('actions').style.display = 'none';
+                    await evalCard(p, idx, c1, c2, b); res();
+                };
+                $('allInBtn').onclick = async () => {
+                    let b = Math.min(p.bal, state.pot);
+                    $('actions').style.display = 'none';
+                    await evalCard(p, idx, c1, c2, b); res();
+                };
+                $('passBtn').onclick = () => { 
+                    $('actions').style.display = 'none'; res(); 
+                };
+            });
+        }
+    }
+
+    async function evalCard(p, idx, c1, c2, bet) {
+        if (bet > 0) someoneBetThisRound = true;
+        let t = state.deck.pop();
+        drawCardImg(`p${idx}_ct`, t);
+        await delay(800);
+        let v1 = ranks.indexOf(c1.rank), v2 = ranks.indexOf(c2.rank), vt = ranks.indexOf(t.rank);
+        let min = Math.min(v1, v2), max = Math.max(v1, v2);
+
+        if (vt > min && vt < max) {
+            p.bal += bet; 
+            state.pot -= bet;
+            $('msg').innerText = `${p.name} trefil! Vyhrává ${bet} C.`;
+        } else if (vt === min || vt === max) {
+            let penalty = bet * 2;
+            p.bal = Math.max(0, p.bal - penalty); 
+            state.pot += penalty;
+            $('msg').innerText = `KOZA! ${p.name} trefil hranu a platí ${penalty} C.`;
+        } else {
+            p.bal = Math.max(0, p.bal - bet); 
+            state.pot += bet;
+            $('msg').innerText = `${p.name} netrefil a prohrál ${bet} C.`;
+        }
+        updateUI(); await delay(1300);
+    }
+
+    function updateUI() {
+        $('pot').innerText = state.pot;
+        $('playersRow').innerHTML = state.players.map((p, i) => `
+            <div class="player-box ${state.currentTurn === i ? 'active-player' : ''}">
+                <strong>${p.name}</strong><br>${p.bal > 0 ? p.bal : 'BANKROT'}
+            </div>`).join('');
+    }
+
+    function renderCardsArea() {
+        $('cardsArea').innerHTML = state.players.map((p, i) => p.bal <= 0 ? '' : `
+            <div class="player-row-ui">
+                <div class="card-row">
+                    <div id="p${i}_c1" class="card"></div>
+                    <div id="p${i}_ct" class="card" style="border:1px solid rgba(255,215,0,0.4); border-radius:5px;"></div>
+                    <div id="p${i}_c2" class="card"></div>
+                </div>
+            </div>`).join('');
+    }
+
+    function drawCardImg(id, card) {
+        const el = $(id);
+        if (el) el.innerHTML = `<img src="${IMAGE_URLS[card.rank + '_' + card.suit]}">`;
+    }
+
+    function showEnd(win) {
+        $('endScreen').style.display = 'flex';
+        $('endTitle').innerText = win ? "VÍTĚZSTVÍ!" : "KONEC HRY";
+        
+        const playerFinal = Math.max(0, state.players[0].bal);
+        $('endMsg').innerText = win 
+            ? `Všechny jsi oškubal! Do trezoru si připíšeš ${playerFinal} Coinů.` 
+            : `Hra skončila. Tentokrát jsi nic nevyhrál, ale o nic nepřicházíš.`;
+    }
+
+    $('finishBtn').onclick = () => {
+        const playerWin = Math.max(0, state.players[0].bal); 
+        const currentVault = userData.coins || 0;
+        
+        update(ref(db, `tips/${userUid}`), {
+            coins: currentVault + playerWin
+        }).then(() => {
+            $('endScreen').style.display = 'none';
+            $('game').style.display = 'none';
+            $('startScreen').style.display = 'flex';
+            isFirstRound = true;
+            state.pot = 0;
+        });
+    };
+
+    $('startBtn').onclick = startGame;
+    $('nextBtn').onclick = startRound;
+
+</script>
+</body>
+</html>
