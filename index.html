@@ -14,9 +14,15 @@
     <meta name="apple-mobile-web-app-title" content="Tipovačka">
 
     <script src="https://cdn-onesignal.com/sdks/web/v16/OneSignal.js" async=""></script>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
-      window.OneSignal = window.OneSignal || [];
-    </script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "331eb68b-ed53-4fb9-a9ef-5c80b74551b9",
+        });
+      });
+</script>
     
     <style>
         /* LOGIN STYLY */
