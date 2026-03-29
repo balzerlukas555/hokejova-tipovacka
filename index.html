@@ -116,6 +116,32 @@
             align-items: center;
             gap: 10px;
         }
+
+        /* TLAČÍTKA PRO VÝDĚLEK */
+        .earn-container {
+            display: flex;
+            gap: 10px;
+            max-width: 400px;
+            margin: 15px auto;
+        }
+        .btn-earn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.2s;
+        }
+        .btn-earn:active { transform: scale(0.95); }
+        .bg-kozy { background: linear-gradient(135deg, #0b4d1a, #16a34a); color: white; }
+        .bg-hcw { background: linear-gradient(135deg, #1e293b, #3b82f6); color: white; }
+
         /* HISTORIE */
 
         .hist-table { 
@@ -642,6 +668,11 @@
             
             <div id="myHistory"></div>
             <div id="histToggle" class="hist-toggle" onclick="window.toggleFullHistory()">Zobrazit jen 3 ▲</div>
+        </div>
+
+        <div class="earn-container">
+            <a href="mezi-kozy.html" class="btn-earn bg-kozy">🐐 Hrát Mezi Kozy</a>
+            <a href="hcw.html" class="btn-earn bg-hcw">🃏 Hrát Higher Card</a>
         </div>
 
         <div id="mainContent">
