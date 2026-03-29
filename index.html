@@ -874,7 +874,19 @@
         });
     };
 
-    window.updateMatch = (id, field, val) => update(ref(db, `matches/${id}`), { [field]: val });
+    window.updateMatch = (id, field, val) => {
+        update(ref(db, `matches/${id}`), { [field]: val });
+        
+        // PUSH NOTIFIKACE PŘI ZMĚNĚ STAVU (MIMO SKÓRE)
+        if (field === 'status') {
+            const m = state.matches[id];
+            if (val === 'Konec') {
+                window.sendPushNotification('🏁 Konec zápasu!', `${m.home} ${m.score} ${m.away} - Zápas skončil.`);
+            } else if (val !== 'Dohráno' && val !== 'Plánováno') {
+                window.sendPushNotification('🏒 Stav zápasu se změnil', `${m.home} vs ${m.away} - Aktuální stav: ${val}`);
+            }
+        }
+    };
 
     window.changeScore = (id, teamIdx, delta) => {
         const m = state.matches[id];
