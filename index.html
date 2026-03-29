@@ -21,7 +21,7 @@
           appId: "331eb68b-ed53-4fb9-a9ef-5c80b74551b9",
         });
       });
-</script>
+    </script>
     
     <style>
         /* LOGIN STYLY */
@@ -716,15 +716,10 @@
         if (cfg && cfg.onesignal_app_id) {
             state.config = cfg;
             
-            // Inicializace OneSignal kompatibilní s iOS/PWA
-            OneSignal.push(async function() {
-                await OneSignal.init({
-                    appId: cfg.onesignal_app_id,
-                    allowLocalhostAsSecureOrigin: true,
-                    notifyButton: { enable: false },
-                });
-                
-                // Automaticky vyzve k povolení, pokud ještě není uděleno
+            // Inicializace OneSignal kompatibilní s iOS/PWA - OPRAVENO
+            window.OneSignalDeferred = window.OneSignalDeferred || [];
+            window.OneSignalDeferred.push(async function(OneSignal) {
+                // SDK se inicializuje samo z headu, zde jen vyvoláme permission prompt
                 if (OneSignal.Notifications.permission === false || OneSignal.Notifications.permission === "default") {
                     await OneSignal.Notifications.requestPermission();
                 }
@@ -1368,15 +1363,6 @@
         });
         table.innerHTML = hHtml;
     }
-</script>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('PWA: Service Worker připraven!', reg.scope))
-        .catch(err => console.error('PWA: Service Worker selhal:', err));
-    });
-  }
 </script>
 </body>
 </html>
