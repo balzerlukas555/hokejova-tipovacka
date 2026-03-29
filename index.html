@@ -138,9 +138,12 @@
             border: 1px solid rgba(255,255,255,0.1);
             transition: transform 0.2s;
         }
-        .btn-earn:active { transform: scale(0.95); }
-        .bg-kozy { background: linear-gradient(135deg, #0b4d1a, #16a34a); color: white; }
-        .bg-hcw { background: linear-gradient(135deg, #1e293b, #3b82f6); color: white; }
+        .btn-earn:active { 
+            transform: scale(0.95); 
+        }
+        .bg-kozy { 
+            background: linear-gradient(135deg, #0b4d1a, #16a34a); color: white; 
+        }
 
         /* HISTORIE */
 
@@ -506,13 +509,55 @@
             background: rgba(0,0,0,0.85); z-index: 10000; display: none; 
             align-items: center; justify-content: center; backdrop-filter: blur(5px);
         }
-        .bet-market-section { border-top: 1px solid #334155; margin-top: 15px; padding-top: 10px; }
-        .bet-market-title { font-size: 12px; color: #3b82f6; font-weight: bold; margin-bottom: 10px; text-align: left; text-transform: uppercase; }
-        .bet-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
-        .bet-btn { background: #334155; padding: 10px 5px; font-size: 13px; border-radius: 8px; cursor: pointer; text-align: center; font-weight: bold; border: 1px solid transparent; }
-        .bet-btn.active { background: #3b82f6; border-color: #60a5fa; box-shadow: 0 0 10px rgba(59,130,246,0.5); }
-        .stake-input-wrap { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
-        .stake-input-wrap input { margin: 0; }
+        .bet-market-section { 
+            border-top: 1px solid #334155; 
+            margin-top: 15px; 
+            padding-top: 10px; 
+        }
+        
+        .bet-market-title { 
+            font-size: 12px; 
+            color: #3b82f6; 
+            font-weight: bold; 
+            margin-bottom: 10px; 
+            text-align: left; 
+            text-transform: uppercase; 
+        }
+        
+        .bet-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 8px; 
+            margin-bottom: 10px; 
+        }
+        
+        .bet-btn { 
+            background: #334155; 
+            padding: 10px 5px; 
+            font-size: 13px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            text-align: center; 
+            font-weight: bold; 
+            border: 1px solid transparent; 
+        }
+        
+        .bet-btn.active { 
+            background: #3b82f6; 
+            border-color: #60a5fa; 
+            box-shadow: 0 0 10px rgba(59,130,246,0.5); 
+        }
+        
+        .stake-input-wrap { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            margin-top: 5px; 
+        }
+        
+        .stake-input-wrap input { 
+            margin: 0; 
+        }
 
         /* ADMIN */
         .admin { 
@@ -670,11 +715,6 @@
             <div id="histToggle" class="hist-toggle" onclick="window.toggleFullHistory()">Zobrazit jen 3 ▲</div>
         </div>
 
-        <div class="earn-container">
-            <a href="mezi-kozy.html" class="btn-earn bg-kozy">🐐 Hrát Mezi Kozy</a>
-            <a href="hcw.html" class="btn-earn bg-hcw">🃏 Hrát Higher Card</a>
-        </div>
-
         <div id="mainContent">
             <div id="matchesContainer">Načítám zápasy...</div>
             
@@ -689,6 +729,9 @@
             <h2>Žebříček sázkařů</h2>
             <div class="table-wrap">
                 <table id="playersTable"></table>
+            </div>
+            <div class="earn-container">
+                <a href="mezi-kozy.html" class="btn-earn bg-kozy">Hrát Mezi Kozy</a>
             </div>
         </div>
 
