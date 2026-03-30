@@ -1114,15 +1114,13 @@
         }, 5000);
     };
 
-    // START ZÁPASU (Animace na 5s) - OPRAVENO DLE FUNKČNÍHO STYLU
+    // START ZÁPASU (Animace na 5s)
     window.startMatchWithAnim = (mId) => {
         const m = state.matches[mId];
         
-        // Okamžité zapnutí overlay animace
         state.activeStartAnimations.set(mId, true);
         renderMain();
 
-        // 5s prodleva, během které je vidět animace, než se změní stav zápasu
         setTimeout(() => {
             state.activeStartAnimations.delete(mId);
             window.updateMatch(mId, 'status', '1. Třetina');
