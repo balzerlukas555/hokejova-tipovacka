@@ -973,7 +973,7 @@
         set(ref(db, `matches/m${Date.now()}`), { 
             home:"Tým A", away:"Tým B", date:"1.1. 18:00", 
             group:"none", status:"Plánováno", score:"0:0", closed:false,
-            homeLogo: "", awayLogo: "", description: "", homeColor: "#1e293b", awayColor: "#1e293b"
+            homeLogo: "", awayLogo: "", description: "", homeColor: "#3b82f6", awayColor: "#1e293b"
         });
     };
 
@@ -1312,7 +1312,7 @@
                         <input style="width:50%" onchange="window.updateMatch('${id}','awayLogo',this.value)" value="${m.awayLogo || ''}" placeholder="URL loga hosté">
                     </div>
                     <div style="display:flex; gap:5px; margin-bottom:5px;">
-                        <input type="color" style="width:50%; height:30px;" onchange="window.updateMatch('${id}','homeColor',this.value)" value="${m.homeColor || '#1e293b'}">
+                        <input type="color" style="width:50%; height:30px;" onchange="window.updateMatch('${id}','homeColor',this.value)" value="${m.homeColor || '#3b82f6'}">
                         <input type="color" style="width:50%; height:30px;" onchange="window.updateMatch('${id}','awayColor',this.value)" value="${m.awayColor || '#1e293b'}">
                     </div>
                     <input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}">
@@ -1467,7 +1467,7 @@
                         <div class="start-overlay">
                             <div class="split-bg">
                                 <div class="split-left" style="background:${m.homeColor || '#3b82f6'}"></div>
-                                <div class="split-right" style="background:${m.awayColor || '#1e293b'}"></div>
+                                <div class="split-right" style="background:${m.homeColor || '#3b82f6'}"></div>
                             </div>
                             <img src="${m.homeLogo}" class="goal-logo logo-l">
                             <span class="anim-vs">VS</span>
@@ -1478,7 +1478,7 @@
                         <div class="end-overlay">
                             <div class="split-bg">
                                 <div class="split-left" style="background:${m.homeColor || '#3b82f6'}"></div>
-                                <div class="split-right" style="background:${m.homeColor || '#3b82f6'}"></div>
+                                <div class="split-right" style="background:${m.awayColor || '#1e293b'}"></div>
                             </div>
                             <img src="${m.homeLogo}" class="goal-logo logo-l">
                             <span class="anim-score">${m.score}</span>
