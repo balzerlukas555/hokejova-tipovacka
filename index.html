@@ -1059,7 +1059,7 @@
 
         // ANIMACE KONCE ZÁPASU (Split Screen)
         state.activeEndAnimations.set(mId, true);
-        renderMain(); // OPRAVA: Ihned překreslíme UI pro spuštění animace
+        renderMain(); // UI update ihned po nastavení animace
 
         setTimeout(() => {
             state.activeEndAnimations.delete(mId);
@@ -1121,7 +1121,7 @@
     window.startMatchWithAnim = (mId) => {
         const m = state.matches[mId];
         state.activeStartAnimations.set(mId, true);
-        renderMain(); // OPRAVA: Ihned překreslíme UI pro spuštění animace
+        renderMain(); // UI update ihned po nastavení animace
 
         setTimeout(() => {
             state.activeStartAnimations.delete(mId);
