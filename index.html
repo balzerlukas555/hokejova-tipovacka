@@ -292,7 +292,7 @@
         }
 
         /* ANIMACE GÓLU A ZAČÁTKU - UPRAVENÁ SEKVENCE */
-        .goal-overlay, .start-overlay {
+        .goal-overlay, .start-overlay, .evaluate-overlay {
             position: absolute;
             top: 0;
             left: 0;
@@ -345,6 +345,19 @@
             font-size: 24px;
             margin-top: 5px;
             text-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+        }
+
+        /* STYLY PRO VYHODNOCENÍ */
+        .eval-logo {
+            width: 60px; height: 60px; object-fit: contain;
+            filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
+        }
+        .eval-score {
+            font-size: 36px; font-weight: 900; color: #fff; margin: 0 20px;
+        }
+        .eval-end-text {
+            color: #ef4444; font-weight: 900; font-size: 22px; margin-top: 15px;
+            text-transform: uppercase;
         }
 
         @keyframes homeEnter {
@@ -826,7 +839,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map(), activeStartAnimations: new Map() };
+    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map(), activeStartAnimations: new Map(), activeEndAnimations: new Map() };
 
     // NAČTENÍ KONFIGURACE (OneSignal Klíče)
     onValue(ref(db, "config"), (snapshot) => {
@@ -1014,9 +1027,6 @@
         window.updateMatch(id,'closed',true); 
         window.sendPushNotification('🏒 Zápas začal!', `${m.home} vs ${m.away}`);
         
-        // Spuštění lokální animace "VS" pro všechny (pokud mají otevřenou aplikaci)
-        // V praxi by bylo lepší mít trigger v DB, ale pro jednoduchost to vyvoláme zde
-        // aby to viděl aspoň admin a ti, co mají zrovna načteno.
         if (!state.activeStartAnimations.has(id)) {
             state.activeStartAnimations.set(id, { home: m.homeLogo, away: m.awayLogo });
             renderMain();
@@ -1089,6 +1099,16 @@
         const m = state.matches[mId];
         if(m.status !== "Konec" && m.status !== "Dohráno") return alert("Zápas musí být 'Konec'!");
         if(!confirm(`Vyhodnotit ${m.home}-${m.away} (${m.score})?`)) return;
+
+        // ANIMACE KONCE ZÁPASU (5 sekund)
+        if (!state.activeEndAnimations.has(mId)) {
+            state.activeEndAnimations.set(mId, { homeLogo: m.homeLogo, awayLogo: m.awayLogo, score: m.score });
+            renderMain();
+            setTimeout(() => {
+                state.activeEndAnimations.delete(mId);
+                renderMain();
+            }, 5000);
+        }
 
         const [hS, aS] = m.score.split(":").map(Number);
         const actualRes = hS > aS ? "1" : (aS > hS ? "2" : "0");
@@ -1470,9 +1490,20 @@
                 const hLogoHtml = m.homeLogo ? `<img src="${m.homeLogo}" class="team-logo">` : "";
                 const aLogoHtml = m.awayLogo ? `<img src="${m.awayLogo}" class="team-logo">` : "";
 
-                // OVERLAY LOGIKA (GÓL NEBO START)
+                // OVERLAY LOGIKA (GÓL, START NEBO KONEC)
                 let currentOverlay = "";
-                if (state.activeGoalAnimations.has(mId)) {
+                if (state.activeEndAnimations.has(mId)) {
+                    const end = state.activeEndAnimations.get(mId);
+                    currentOverlay = `
+                        <div class="evaluate-overlay">
+                            <div style="display: flex; align-items: center; justify-content: center;">
+                                <img src="${end.homeLogo}" class="eval-logo">
+                                <div class="eval-score">${end.score}</div>
+                                <img src="${end.awayLogo}" class="eval-logo">
+                            </div>
+                            <div class="eval-end-text">ZÁPAS SKONČIL</div>
+                        </div>`;
+                } else if (state.activeGoalAnimations.has(mId)) {
                     const scoringLogo = state.activeGoalAnimations.get(mId);
                     currentOverlay = `<div class="goal-overlay"><img src="${scoringLogo}" class="goal-logo"><div class="goal-text">GÓÓÓL!</div></div>`;
                 } else if (state.activeStartAnimations.has(mId)) {
@@ -1494,7 +1525,7 @@
                         
                         ${m.description ? `<div style="font-size:13px; color:#94a3b8; margin: 5px 0 10px 0; font-style: italic; text-align: center;">${m.description}</div>` : ""}
 
-                        <div class="teams" style="${(state.activeGoalAnimations.has(mId) || state.activeStartAnimations.has(mId)) ? 'opacity:0' : 'opacity:1'}">
+                        <div class="teams" style="${(state.activeGoalAnimations.has(mId) || state.activeStartAnimations.has(mId) || state.activeEndAnimations.has(mId)) ? 'opacity:0' : 'opacity:1'}">
                             ${hLogoHtml} ${m.home} 
                             ${m.status !== 'Plánováno' && !isF ? `<span class="live-score">${m.score}</span>` : (isF ? `<span class="live-score" style="background:#059669">${m.score}</span>` : 'vs')} 
                             ${m.away} ${aLogoHtml}
