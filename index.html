@@ -292,59 +292,44 @@
         }
 
         /* ANIMACE GÓLU / STARTU / KONCE */
-        .goal-overlay {
+        .goal-overlay, .start-overlay, .end-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #1e293b;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 10;
+            z-index: 20;
             animation: fadeIn 0.4s ease-out;
+            overflow: hidden;
         }
 
-        .start-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-            z-index: 20; animation: fadeIn 0.5s ease-out;
-        }
-
-        .end-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-            z-index: 20; animation: fadeIn 0.5s ease-out;
-        }
+        .goal-overlay { background: #1e293b; flex-direction: column; }
 
         .split-bg {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; z-index: -1;
         }
-        .split-left { flex: 1; }
-        .split-right { flex: 1; }
+        .split-left, .split-right { flex: 1; transition: background 0.3s; }
 
         .goal-logo {
             width: 70px;
             height: 70px;
             object-fit: contain;
-            filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
-            animation: goalBounce 0.8s infinite ease-in-out;
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
+            z-index: 22;
         }
 
-        .anim-vs {
-            font-size: 32px; font-weight: 900; color: white; margin: 0 15px;
-            text-shadow: 0 0 10px rgba(0,0,0,0.5);
-        }
+        .logo-l { animation: slideInL 0.6s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards; }
+        .logo-r { animation: slideInR 0.6s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards; }
 
-        .anim-score {
-            font-size: 36px; font-weight: 900; color: white; margin: 0 20px;
-            text-shadow: 0 0 10px rgba(0,0,0,0.5);
-            background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 10px;
+        .anim-vs, .anim-score {
+            font-size: 28px; font-weight: 900; color: white; margin: 0 15px;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+            z-index: 23;
+            animation: popIn 0.4s 0.3s both;
         }
 
         .goal-text {
@@ -353,13 +338,25 @@
             font-size: 24px;
             margin-top: 5px;
             text-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+            animation: goalBounce 0.8s infinite ease-in-out;
         }
 
+        @keyframes slideInL {
+            from { transform: translateX(-150%) scale(0.5); opacity: 0; }
+            to { transform: translateX(0) scale(1); opacity: 1; }
+        }
+        @keyframes slideInR {
+            from { transform: translateX(150%) scale(0.5); opacity: 0; }
+            to { transform: translateX(0) scale(1); opacity: 1; }
+        }
+        @keyframes popIn {
+            from { transform: scale(0); }
+            to { transform: scale(1.2); }
+        }
         @keyframes goalBounce {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2); }
+            50% { transform: scale(1.1); }
         }
-
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -1057,9 +1054,9 @@
         if(m.status !== "Konec" && m.status !== "Dohráno") return alert("Zápas musí být 'Konec'!");
         if(!confirm(`Vyhodnotit ${m.home}-${m.away} (${m.score})?`)) return;
 
-        // ANIMACE KONCE ZÁPASU (Split Screen)
+        // ANIMACE KONCE ZÁPASU (Na 5s)
         state.activeEndAnimations.set(mId, true);
-        renderMain(); // UI update ihned po nastavení animace
+        renderMain();
 
         setTimeout(() => {
             state.activeEndAnimations.delete(mId);
@@ -1117,11 +1114,11 @@
         }, 5000);
     };
 
-    // START ZÁPASU (Animace)
+    // START ZÁPASU (Animace na 5s)
     window.startMatchWithAnim = (mId) => {
         const m = state.matches[mId];
         state.activeStartAnimations.set(mId, true);
-        renderMain(); // UI update ihned po nastavení animace
+        renderMain();
 
         setTimeout(() => {
             state.activeStartAnimations.delete(mId);
@@ -1432,12 +1429,10 @@
                 const isF = m.status === 'Dohráno';
                 const isLive = m.status !== "Plánováno" && !isF;
                 
-                // LOGIKA PŘIPNUTÍ: Plánovaný v pinnedIds NEBO Live/Konec a není v hiddenLiveIds
                 const isPinned = pinnedIds.includes(mId) || ((isLive || m.status === 'Konec') && !hiddenLiveIds.includes(mId));
-                
                 const isDisabled = m.status !== "Plánováno" || m.closed === true || isLocked;
 
-                // DETEKCE GÓLU (Pouze UI Animace)
+                // DETEKCE GÓLU
                 let scoringTeam = null;
                 if (state.lastScores[mId] && state.lastScores[mId] !== m.score && m.status !== "Plánováno") {
                     const [oldH, oldA] = state.lastScores[mId].split(":").map(Number);
@@ -1462,20 +1457,33 @@
                 const hLogoHtml = m.homeLogo ? `<img src="${m.homeLogo}" class="team-logo">` : "";
                 const aLogoHtml = m.awayLogo ? `<img src="${m.awayLogo}" class="team-logo">` : "";
 
-                // ANIMACE OVERLAY LOGIKA
+                // ANIMACE OVERLAY
                 let animOverlay = "";
                 if (state.activeGoalAnimations.has(mId)) {
                     const scoringLogo = state.activeGoalAnimations.get(mId);
                     animOverlay = `<div class="goal-overlay"><img src="${scoringLogo}" class="goal-logo"><div class="goal-text">GÓÓÓL!</div></div>`;
                 } else if (state.activeStartAnimations.has(mId)) {
-                    animOverlay = `<div class="start-overlay" style="background:${m.homeColor || '#1e293b'}">
-                        <img src="${m.homeLogo}" class="goal-logo"> <span class="anim-vs">VS</span> <img src="${m.awayLogo}" class="goal-logo">
-                    </div>`;
+                    animOverlay = `
+                        <div class="start-overlay">
+                            <div class="split-bg">
+                                <div class="split-left" style="background:${m.homeColor || '#3b82f6'}"></div>
+                                <div class="split-right" style="background:${m.awayColor || '#1e293b'}"></div>
+                            </div>
+                            <img src="${m.homeLogo}" class="goal-logo logo-l">
+                            <span class="anim-vs">VS</span>
+                            <img src="${m.awayLogo}" class="goal-logo logo-r">
+                        </div>`;
                 } else if (state.activeEndAnimations.has(mId)) {
-                    animOverlay = `<div class="end-overlay">
-                        <div class="split-bg"><div class="split-left" style="background:${m.homeColor || '#1e293b'}"></div><div class="split-right" style="background:${m.awayColor || '#1e293b'}"></div></div>
-                        <img src="${m.homeLogo}" class="goal-logo"> <span class="anim-score">${m.score}</span> <img src="${m.awayLogo}" class="goal-logo">
-                    </div>`;
+                    animOverlay = `
+                        <div class="end-overlay">
+                            <div class="split-bg">
+                                <div class="split-left" style="background:${m.homeColor || '#3b82f6'}"></div>
+                                <div class="split-right" style="background:${m.homeColor || '#3b82f6'}"></div>
+                            </div>
+                            <img src="${m.homeLogo}" class="goal-logo logo-l">
+                            <span class="anim-score">${m.score}</span>
+                            <img src="${m.awayLogo}" class="goal-logo logo-r">
+                        </div>`;
                 }
 
                 gHtml += `<div class="match ${isPinned ? 'pinned' : ''}">
