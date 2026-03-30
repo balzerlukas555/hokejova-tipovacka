@@ -1059,6 +1059,8 @@
 
         // ANIMACE KONCE ZÁPASU (Split Screen)
         state.activeEndAnimations.set(mId, true);
+        renderMain(); // OPRAVA: Ihned překreslíme UI pro spuštění animace
+
         setTimeout(() => {
             state.activeEndAnimations.delete(mId);
             const [hS, aS] = m.score.split(":").map(Number);
@@ -1119,6 +1121,8 @@
     window.startMatchWithAnim = (mId) => {
         const m = state.matches[mId];
         state.activeStartAnimations.set(mId, true);
+        renderMain(); // OPRAVA: Ihned překreslíme UI pro spuštění animace
+
         setTimeout(() => {
             state.activeStartAnimations.delete(mId);
             window.updateMatch(mId, 'status', '1. Třetina');
