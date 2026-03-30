@@ -1114,12 +1114,15 @@
         }, 5000);
     };
 
-    // START ZÁPASU (Animace na 5s)
+    // START ZÁPASU (Animace na 5s) - OPRAVENO DLE FUNKČNÍHO STYLU
     window.startMatchWithAnim = (mId) => {
         const m = state.matches[mId];
+        
+        // Okamžité zapnutí overlay animace
         state.activeStartAnimations.set(mId, true);
         renderMain();
 
+        // 5s prodleva, během které je vidět animace, než se změní stav zápasu
         setTimeout(() => {
             state.activeStartAnimations.delete(mId);
             window.updateMatch(mId, 'status', '1. Třetina');
@@ -1467,7 +1470,7 @@
                         <div class="start-overlay">
                             <div class="split-bg">
                                 <div class="split-left" style="background:${m.homeColor || '#3b82f6'}"></div>
-                                <div class="split-right" style="background:${m.homeColor || '#3b82f6'}"></div>
+                                <div class="split-right" style="background:${m.awayColor || '#1e293b'}"></div>
                             </div>
                             <img src="${m.homeLogo}" class="goal-logo logo-l">
                             <span class="anim-vs">VS</span>
