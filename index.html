@@ -291,7 +291,7 @@
             transition: opacity 0.3s;
         }
 
-        /* ANIMACE GÓLU */
+        /* ANIMACE GÓLU / STARTU / KONCE */
         .goal-overlay {
             position: absolute;
             top: 0;
@@ -307,12 +307,44 @@
             animation: fadeIn 0.4s ease-out;
         }
 
+        .start-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 20; animation: fadeIn 0.5s ease-out;
+        }
+
+        .end-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 20; animation: fadeIn 0.5s ease-out;
+        }
+
+        .split-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; z-index: -1;
+        }
+        .split-left { flex: 1; }
+        .split-right { flex: 1; }
+
         .goal-logo {
             width: 70px;
             height: 70px;
             object-fit: contain;
             filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
             animation: goalBounce 0.8s infinite ease-in-out;
+        }
+
+        .anim-vs {
+            font-size: 32px; font-weight: 900; color: white; margin: 0 15px;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .anim-score {
+            font-size: 36px; font-weight: 900; color: white; margin: 0 20px;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 10px;
         }
 
         .goal-text {
@@ -782,7 +814,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
+    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map(), activeStartAnimations: new Map(), activeEndAnimations: new Map() };
 
     // NAČTENÍ KONFIGURACE (OneSignal Klíče)
     onValue(ref(db, "config"), (snapshot) => {
@@ -944,7 +976,7 @@
         set(ref(db, `matches/m${Date.now()}`), { 
             home:"Tým A", away:"Tým B", date:"1.1. 18:00", 
             group:"none", status:"Plánováno", score:"0:0", closed:false,
-            homeLogo: "", awayLogo: "", description: ""
+            homeLogo: "", awayLogo: "", description: "", homeColor: "#1e293b", awayColor: "#1e293b"
         });
     };
 
@@ -1025,57 +1057,74 @@
         if(m.status !== "Konec" && m.status !== "Dohráno") return alert("Zápas musí být 'Konec'!");
         if(!confirm(`Vyhodnotit ${m.home}-${m.away} (${m.score})?`)) return;
 
-        const [hS, aS] = m.score.split(":").map(Number);
-        const actualRes = hS > aS ? "1" : (aS > hS ? "2" : "0");
-        const totalG = hS + aS;
+        // ANIMACE KONCE ZÁPASU (Split Screen)
+        state.activeEndAnimations.set(mId, true);
+        setTimeout(() => {
+            state.activeEndAnimations.delete(mId);
+            const [hS, aS] = m.score.split(":").map(Number);
+            const actualRes = hS > aS ? "1" : (aS > hS ? "2" : "0");
+            const totalG = hS + aS;
 
-        Object.keys(state.players).forEach(pId => {
-            const p = state.players[pId];
-            const fullBet = p?.bets?.[mId];
-            if(!fullBet) return;
-            
-            ["result", "score", "goals"].forEach(type => {
-                const bet = fullBet[type];
-                if(!bet) return;
-
-                let finalMult = 0;
-                let winType = "loss";
-
-                if(type === "result") {
-                    if(bet.tip === actualRes) { finalMult = 2; winType = "win"; }
-                    else if(bet.tip === "1X" && (actualRes==="1"||actualRes==="0")) { finalMult = 1.6; winType = "win"; }
-                    else if(bet.tip === "X2" && (actualRes==="2"||actualRes==="0")) { finalMult = 1.6; winType = "win"; }
-                    else if(bet.tip === "12" && (actualRes==="1"||actualRes==="2")) { finalMult = 1.4; winType = "win"; }
-                } 
-                else if(type === "score") {
-                    if(bet.tip === m.score) { finalMult = 4; winType = "gold"; }
-                } 
-                else if(type === "goals") {
-                    if(bet.tip === "V 2.5" && totalG > 2.5) { finalMult = 1.3; winType = "win"; }
-                    else if(bet.tip === "V 4.5" && totalG > 4.5) { finalMult = 1.6; winType = "win"; }
-                    else if(bet.tip === "V 6.5" && totalG > 6.5) { finalMult = 2.0; winType = "win"; }
-                    else if(bet.tip === "M 2.5" && totalG < 2.5) { finalMult = 2.0; winType = "win"; }
-                    else if(bet.tip === "M 4.5" && totalG < 4.5) { finalMult = 1.6; winType = "win"; }
-                    else if(bet.tip === "M 6.5" && totalG < 6.5) { finalMult = 1.3; winType = "win"; }
-                }
-
-                const gain = finalMult > 0 ? Math.floor(bet.stake * finalMult) : -bet.stake;
+            Object.keys(state.players).forEach(pId => {
+                const p = state.players[pId];
+                const fullBet = p?.bets?.[mId];
+                if(!fullBet) return;
                 
-                const hId = `h${mId}_${type}`;
-                set(ref(db, `tips/${pId}/history/${hId}`), {
-                    match: `${m.home.slice(0,3)}-${m.away.slice(0,3)} (${type})`,
-                    tip: bet.tip, score: type === "goals" ? totalG : m.score,
-                    gain: gain, type: winType, mult: finalMult > 0 ? finalMult : null, time: Date.now()
-                });
+                ["result", "score", "goals"].forEach(type => {
+                    const bet = fullBet[type];
+                    if(!bet) return;
 
-                if(finalMult > 0) {
-                    const cur = state.players[pId].balance || 0;
-                    update(ref(db, `tips/${pId}`), { balance: cur + Math.floor(bet.stake * finalMult) });
-                }
+                    let finalMult = 0;
+                    let winType = "loss";
+
+                    if(type === "result") {
+                        if(bet.tip === actualRes) { finalMult = 2; winType = "win"; }
+                        else if(bet.tip === "1X" && (actualRes==="1"||actualRes==="0")) { finalMult = 1.6; winType = "win"; }
+                        else if(bet.tip === "X2" && (actualRes==="2"||actualRes==="0")) { finalMult = 1.6; winType = "win"; }
+                        else if(bet.tip === "12" && (actualRes==="1"||actualRes==="2")) { finalMult = 1.4; winType = "win"; }
+                    } 
+                    else if(type === "score") {
+                        if(bet.tip === m.score) { finalMult = 4; winType = "gold"; }
+                    } 
+                    else if(type === "goals") {
+                        if(bet.tip === "V 2.5" && totalG > 2.5) { finalMult = 1.3; winType = "win"; }
+                        else if(bet.tip === "V 4.5" && totalG > 4.5) { finalMult = 1.6; winType = "win"; }
+                        else if(bet.tip === "V 6.5" && totalG > 6.5) { finalMult = 2.0; winType = "win"; }
+                        else if(bet.tip === "M 2.5" && totalG < 2.5) { finalMult = 2.0; winType = "win"; }
+                        else if(bet.tip === "M 4.5" && totalG < 4.5) { finalMult = 1.6; winType = "win"; }
+                        else if(bet.tip === "M 6.5" && totalG < 6.5) { finalMult = 1.3; winType = "win"; }
+                    }
+
+                    const gain = finalMult > 0 ? Math.floor(bet.stake * finalMult) : -bet.stake;
+                    
+                    const hId = `h${mId}_${type}`;
+                    set(ref(db, `tips/${pId}/history/${hId}`), {
+                        match: `${m.home.slice(0,3)}-${m.away.slice(0,3)} (${type})`,
+                        tip: bet.tip, score: type === "goals" ? totalG : m.score,
+                        gain: gain, type: winType, mult: finalMult > 0 ? finalMult : null, time: Date.now()
+                    });
+
+                    if(finalMult > 0) {
+                        const cur = state.players[pId].balance || 0;
+                        update(ref(db, `tips/${pId}`), { balance: cur + Math.floor(bet.stake * finalMult) });
+                    }
+                });
+                remove(ref(db, `tips/${pId}/bets/${mId}`));
             });
-            remove(ref(db, `tips/${pId}/bets/${mId}`));
-        });
-        update(ref(db, `matches/${mId}`), { status: "Dohráno", closed: true });
+            update(ref(db, `matches/${mId}`), { status: "Dohráno", closed: true });
+        }, 5000);
+    };
+
+    // START ZÁPASU (Animace)
+    window.startMatchWithAnim = (mId) => {
+        const m = state.matches[mId];
+        state.activeStartAnimations.set(mId, true);
+        setTimeout(() => {
+            state.activeStartAnimations.delete(mId);
+            window.updateMatch(mId, 'status', '1. Třetina');
+            window.updateMatch(mId, 'closed', true);
+            window.sendPushNotification('🏒 Zápas začal!', `${m.home} vs ${m.away}`);
+        }, 5000);
     };
 
     // SÁZENÍ LOGIKA
@@ -1261,13 +1310,17 @@
                         <input style="width:50%" onchange="window.updateMatch('${id}','homeLogo',this.value)" value="${m.homeLogo || ''}" placeholder="URL loga domácí">
                         <input style="width:50%" onchange="window.updateMatch('${id}','awayLogo',this.value)" value="${m.awayLogo || ''}" placeholder="URL loga hosté">
                     </div>
+                    <div style="display:flex; gap:5px; margin-bottom:5px;">
+                        <input type="color" style="width:50%; height:30px;" onchange="window.updateMatch('${id}','homeColor',this.value)" value="${m.homeColor || '#1e293b'}">
+                        <input type="color" style="width:50%; height:30px;" onchange="window.updateMatch('${id}','awayColor',this.value)" value="${m.awayColor || '#1e293b'}">
+                    </div>
                     <input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}">
                     
                     <input onchange="window.updateMatch('${id}','description',this.value)" value="${m.description || ''}" placeholder="Libovolný popis zápasu (volitelné)">
                     
                     <select onchange="window.updateMatch('${id}', 'group', this.value)">${gOpts}</select>
                     
-                    ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.updateMatch('${id}','status','1. Třetina'); window.updateMatch('${id}','closed',true); window.sendPushNotification('🏒 Zápas začal!', '${m.home} vs ${m.away}')">ZAČÍT ZÁPAS</button>` : 
+                    ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.startMatchWithAnim('${id}')">ZAČÍT ZÁPAS</button>` : 
                     `<div>
                         <select style="width:100%" onchange="window.updateMatch('${id}','status',this.value)">
                             <option value="1. Třetina" ${m.status==='1. Třetina'?'selected':''}>1. Třetina</option>
@@ -1405,19 +1458,29 @@
                 const hLogoHtml = m.homeLogo ? `<img src="${m.homeLogo}" class="team-logo">` : "";
                 const aLogoHtml = m.awayLogo ? `<img src="${m.awayLogo}" class="team-logo">` : "";
 
-                let goalOverlay = "";
+                // ANIMACE OVERLAY LOGIKA
+                let animOverlay = "";
                 if (state.activeGoalAnimations.has(mId)) {
                     const scoringLogo = state.activeGoalAnimations.get(mId);
-                    goalOverlay = `<div class="goal-overlay"><img src="${scoringLogo}" class="goal-logo"><div class="goal-text">GÓÓÓL!</div></div>`;
+                    animOverlay = `<div class="goal-overlay"><img src="${scoringLogo}" class="goal-logo"><div class="goal-text">GÓÓÓL!</div></div>`;
+                } else if (state.activeStartAnimations.has(mId)) {
+                    animOverlay = `<div class="start-overlay" style="background:${m.homeColor || '#1e293b'}">
+                        <img src="${m.homeLogo}" class="goal-logo"> <span class="anim-vs">VS</span> <img src="${m.awayLogo}" class="goal-logo">
+                    </div>`;
+                } else if (state.activeEndAnimations.has(mId)) {
+                    animOverlay = `<div class="end-overlay">
+                        <div class="split-bg"><div class="split-left" style="background:${m.homeColor || '#1e293b'}"></div><div class="split-right" style="background:${m.awayColor || '#1e293b'}"></div></div>
+                        <img src="${m.homeLogo}" class="goal-logo"> <span class="anim-score">${m.score}</span> <img src="${m.awayLogo}" class="goal-logo">
+                    </div>`;
                 }
 
                 gHtml += `<div class="match ${isPinned ? 'pinned' : ''}">
-                        ${goalOverlay}
+                        ${animOverlay}
                         <div class="match-header"><div><span class="pin-btn ${isPinned ? 'active' : ''}" onclick="window.togglePin('${mId}', event)">📌</span><span>${m.date}</span></div><span class="status-badge">${m.status}</span></div>
                         
                         ${m.description ? `<div style="font-size:13px; color:#94a3b8; margin: 5px 0 10px 0; font-style: italic; text-align: center;">${m.description}</div>` : ""}
 
-                        <div class="teams" style="${state.activeGoalAnimations.has(mId) ? 'opacity:0' : 'opacity:1'}">
+                        <div class="teams" style="${(state.activeGoalAnimations.has(mId) || state.activeStartAnimations.has(mId) || state.activeEndAnimations.has(mId)) ? 'opacity:0' : 'opacity:1'}">
                             ${hLogoHtml} ${m.home} 
                             ${m.status !== 'Plánováno' && !isF ? `<span class="live-score">${m.score}</span>` : (isF ? `<span class="live-score" style="background:#059669">${m.score}</span>` : 'vs')} 
                             ${m.away} ${aLogoHtml}
