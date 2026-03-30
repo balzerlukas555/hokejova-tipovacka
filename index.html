@@ -291,8 +291,8 @@
             transition: opacity 0.3s;
         }
 
-        /* ANIMACE GÓLU */
-        .goal-overlay {
+        /* ANIMACE GÓLU A ZAČÁTKU */
+        .goal-overlay, .start-overlay {
             position: absolute;
             top: 0;
             left: 0;
@@ -315,6 +315,20 @@
             animation: goalBounce 0.8s infinite ease-in-out;
         }
 
+        .start-vs-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            animation: startPop 0.5s ease-out;
+        }
+
+        .vs-text {
+            color: #3b82f6;
+            font-weight: 900;
+            font-size: 28px;
+            text-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+        }
+
         .goal-text {
             color: #fbbf24;
             font-weight: 900;
@@ -326,6 +340,11 @@
         @keyframes goalBounce {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.2); }
+        }
+
+        @keyframes startPop {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
 
         @keyframes fadeIn {
@@ -782,7 +801,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
+    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map(), activeStartAnimations: new Map() };
 
     // NAČTENÍ KONFIGURACE (OneSignal Klíče)
     onValue(ref(db, "config"), (snapshot) => {
@@ -959,6 +978,27 @@
             } else if (val !== 'Dohráno' && val !== 'Plánováno') {
                 window.sendPushNotification('🏒 Stav zápasu se změnil', `${m.home} vs ${m.away} - Aktuální stav: ${val}`);
             }
+        }
+    };
+
+    // NOVÁ FUNKCE PRO START ZÁPASU S ANIMACÍ
+    window.startMatchWithAnimation = (id) => {
+        const m = state.matches[id];
+        // Nastavení stavů v DB
+        window.updateMatch(id,'status','1. Třetina'); 
+        window.updateMatch(id,'closed',true); 
+        window.sendPushNotification('🏒 Zápas začal!', `${m.home} vs ${m.away}`);
+        
+        // Spuštění lokální animace "VS" pro všechny (pokud mají otevřenou aplikaci)
+        // V praxi by bylo lepší mít trigger v DB, ale pro jednoduchost to vyvoláme zde
+        // aby to viděl aspoň admin a ti, co mají zrovna načteno.
+        if (!state.activeStartAnimations.has(id)) {
+            state.activeStartAnimations.set(id, { home: m.homeLogo, away: m.awayLogo });
+            renderMain();
+            setTimeout(() => {
+                state.activeStartAnimations.delete(id);
+                renderMain();
+            }, 5000); // Trvání 5 sekund
         }
     };
 
@@ -1267,7 +1307,7 @@
                     
                     <select onchange="window.updateMatch('${id}', 'group', this.value)">${gOpts}</select>
                     
-                    ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.updateMatch('${id}','status','1. Třetina'); window.updateMatch('${id}','closed',true); window.sendPushNotification('🏒 Zápas začal!', '${m.home} vs ${m.away}')">ZAČÍT ZÁPAS</button>` : 
+                    ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.startMatchWithAnimation('${id}')">ZAČÍT ZÁPAS</button>` : 
                     `<div>
                         <select style="width:100%" onchange="window.updateMatch('${id}','status',this.value)">
                             <option value="1. Třetina" ${m.status==='1. Třetina'?'selected':''}>1. Třetina</option>
@@ -1405,19 +1445,31 @@
                 const hLogoHtml = m.homeLogo ? `<img src="${m.homeLogo}" class="team-logo">` : "";
                 const aLogoHtml = m.awayLogo ? `<img src="${m.awayLogo}" class="team-logo">` : "";
 
-                let goalOverlay = "";
+                // OVERLAY LOGIKA (GÓL NEBO START)
+                let currentOverlay = "";
                 if (state.activeGoalAnimations.has(mId)) {
                     const scoringLogo = state.activeGoalAnimations.get(mId);
-                    goalOverlay = `<div class="goal-overlay"><img src="${scoringLogo}" class="goal-logo"><div class="goal-text">GÓÓÓL!</div></div>`;
+                    currentOverlay = `<div class="goal-overlay"><img src="${scoringLogo}" class="goal-logo"><div class="goal-text">GÓÓÓL!</div></div>`;
+                } else if (state.activeStartAnimations.has(mId)) {
+                    const logos = state.activeStartAnimations.get(mId);
+                    currentOverlay = `
+                        <div class="start-overlay">
+                            <div class="start-vs-container">
+                                <img src="${logos.home}" class="goal-logo">
+                                <div class="vs-text">VS</div>
+                                <img src="${logos.away}" class="goal-logo">
+                            </div>
+                            <div class="goal-text" style="color:#3b82f6; margin-top:15px;">ZÁPAS ZAČÍNÁ!</div>
+                        </div>`;
                 }
 
                 gHtml += `<div class="match ${isPinned ? 'pinned' : ''}">
-                        ${goalOverlay}
+                        ${currentOverlay}
                         <div class="match-header"><div><span class="pin-btn ${isPinned ? 'active' : ''}" onclick="window.togglePin('${mId}', event)">📌</span><span>${m.date}</span></div><span class="status-badge">${m.status}</span></div>
                         
                         ${m.description ? `<div style="font-size:13px; color:#94a3b8; margin: 5px 0 10px 0; font-style: italic; text-align: center;">${m.description}</div>` : ""}
 
-                        <div class="teams" style="${state.activeGoalAnimations.has(mId) ? 'opacity:0' : 'opacity:1'}">
+                        <div class="teams" style="${(state.activeGoalAnimations.has(mId) || state.activeStartAnimations.has(mId)) ? 'opacity:0' : 'opacity:1'}">
                             ${hLogoHtml} ${m.home} 
                             ${m.status !== 'Plánováno' && !isF ? `<span class="live-score">${m.score}</span>` : (isF ? `<span class="live-score" style="background:#059669">${m.score}</span>` : 'vs')} 
                             ${m.away} ${aLogoHtml}
