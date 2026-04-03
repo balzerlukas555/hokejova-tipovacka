@@ -1314,6 +1314,21 @@
         const mList = document.getElementById("adminMatchesList"); mList.innerHTML = "";
         const sortedGroups = Object.keys(state.groups).sort((a,b) => state.groups[a].order - state.groups[b].order);
         
+        // SEKCE LIVE ZÁPASY (POUZE PRO ADMINA)
+        const liveMatchIds = Object.keys(state.matches).filter(mid => {
+            const st = state.matches[mid].status;
+            return st !== "Plánováno" && st !== "Dohráno";
+        });
+
+        if (liveMatchIds.length > 0) {
+            const sortedLive = sortMatchesByDate(liveMatchIds);
+            let liveHtml = `<div style="margin-top:20px; border-bottom:1px solid #ef4444; padding-bottom:5px; margin-bottom:10px; color:#ef4444; font-weight:bold; font-size:14px;">🔴 LIVE ZÁPASY (PŘEHLED)</div>`;
+            sortedLive.forEach(id => {
+                liveHtml += renderMatchAdminBox(id);
+            });
+            mList.innerHTML += liveHtml;
+        }
+
         [...sortedGroups, "none"].forEach(gId => {
             const gMatchesRaw = Object.keys(state.matches).filter(mid => state.matches[mid].group === gId);
             if(gMatchesRaw.length === 0 && gId !== "none") return;
@@ -1324,64 +1339,7 @@
             let groupHtml = `<div style="margin-top:20px; border-bottom:1px solid #3b82f6; padding-bottom:5px; margin-bottom:10px; color:#3b82f6; font-weight:bold; font-size:14px;">${gName.toUpperCase()}</div>`;
             
             gMatches.forEach(id => {
-                const m = state.matches[id];
-                let gOpts = `<option value="none">Bez skupiny</option>`;
-                Object.keys(state.groups).forEach(gid => { gOpts += `<option value="${gid}" ${m.group===gid?'selected':''}>${state.groups[gid].name}</option>`; });
-                const [sH, sA] = m.score.split(":").map(Number);
-
-                groupHtml += `<div style="background:#111827; padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid #334155;">
-                    <div style="display:flex; gap:5px; margin-bottom:5px;">
-                        <input style="width:50%" onchange="window.updateMatch('${id}','home',this.value)" value="${m.home}">
-                        <input style="width:50%" onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}">
-                    </div>
-                    <div style="display:flex; gap:5px; margin-bottom:5px;">
-                        <input style="width:50%" onchange="window.updateMatch('${id}','homeLogo',this.value)" value="${m.homeLogo || ''}" placeholder="URL loga domácí">
-                        <input style="width:50%" onchange="window.updateMatch('${id}','awayLogo',this.value)" value="${m.awayLogo || ''}" placeholder="URL loga hosté">
-                    </div>
-                    <input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}">
-                    
-                    <input onchange="window.updateMatch('${id}','description',this.value)" value="${m.description || ''}" placeholder="Libovolný popis zápasu (volitelné)">
-                    
-                    <select onchange="window.updateMatch('${id}', 'group', this.value)">${gOpts}</select>
-                    
-                    ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.startMatchWithAnimation('${id}')">ZAČÍT ZÁPAS</button>` : 
-                    `<div>
-                        <select style="width:100%" onchange="window.updateMatch('${id}','status',this.value)">
-                            <option value="1. Třetina" ${m.status==='1. Třetina'?'selected':''}>1. Třetina</option>
-                            <option value="Po 1. Třetině" ${m.status==='Po 1. Třetině'?'selected':''}>Po 1. Třetině</option>
-                            <option value="2. Třetina" ${m.status==='2. Třetina'?'selected':''}>2. Třetina</option>
-                            <option value="Po 2. Třetině" ${m.status==='Po 2. Třetině'?'selected':''}>Po 2. Třetině</option>
-                            <option value="3. Třetina" ${m.status==='3. Třetina'?'selected':''}>3. Třetina</option>
-                            <option value="Po 3. Třetině" ${m.status==='Po 3. Třetině'?'selected':''}>Po 3. Třetině</option>
-                            <option value="Prodloužení" ${m.status==='Prodloužení'?'selected':''}>Prodloužení</option>
-                            <option value="Po prodloužení" ${m.status==='Po prodloužení'?'selected':''}>Po prodloužení</option>
-                            <option value="Nájezdy" ${m.status==='Nájezdy'?'selected':''}>Nájezdy</option>
-                            <option value="Přerušeno" ${m.status==='Přerušeno'?'selected':''}>Přerušeno</option>
-                            <option value="Konec" ${m.status==='Konec'?'selected':''}>Konec</option>
-                            <option value="Dohráno" ${m.status==='Dohráno'?'selected':''}>Dohráno</option>
-                        </select>
-                        
-                        <div class="score-control">
-                            <div style="text-align:center">
-                                <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 0, -1)">-</button>
-                                <span class="score-num">${sH}</span>
-                                <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 0, 1)">+</button>
-                            </div>
-                            <span style="font-size:20px">:</span>
-                            <div style="text-align:center">
-                                <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 1, -1)">-</button>
-                                <span class="score-num">${sA}</span>
-                                <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 1, 1)">+</button>
-                            </div>
-                        </div>
-                    </div>`}
-                    
-                    <div style="margin-top:8px; display:flex; gap:5px;">
-                        <button class="${m.status==='Konec'?'btn-gold':'btn-disabled'}" onclick="window.evaluateMatch('${id}')">VYHODNOTIT</button>
-                        <button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít':'Zavřít'}</button>
-                        <button class="btn-danger" onclick="window.deleteMatch('${id}')">X</button>
-                    </div>
-                </div>`;
+                groupHtml += renderMatchAdminBox(id);
             });
             mList.innerHTML += groupHtml;
         });
@@ -1398,6 +1356,63 @@
                     <button class="btn-danger" onclick="window.deletePlayer('${id}')">Smazat</button>
                 </div></div>`;
         });
+    }
+
+    // POMOCNÁ FUNKCE PRO ADMIN BOX ZÁPASU
+    function renderMatchAdminBox(id) {
+        const m = state.matches[id];
+        let gOpts = `<option value="none">Bez skupiny</option>`;
+        Object.keys(state.groups).forEach(gid => { gOpts += `<option value="${gid}" ${m.group===gid?'selected':''}>${state.groups[gid].name}</option>`; });
+        const [sH, sA] = m.score.split(":").map(Number);
+
+        return `<div style="background:#111827; padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid #334155;">
+            <div style="display:flex; gap:5px; margin-bottom:5px;">
+                <input style="width:50%" onchange="window.updateMatch('${id}','home',this.value)" value="${m.home}">
+                <input style="width:50%" onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}">
+            </div>
+            <div style="display:flex; gap:5px; margin-bottom:5px;">
+                <input style="width:50%" onchange="window.updateMatch('${id}','homeLogo',this.value)" value="${m.homeLogo || ''}" placeholder="URL loga domácí">
+                <input style="width:50%" onchange="window.updateMatch('${id}','awayLogo',this.value)" value="${m.awayLogo || ''}" placeholder="URL loga hosté">
+            </div>
+            <input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}">
+            <input onchange="window.updateMatch('${id}','description',this.value)" value="${m.description || ''}" placeholder="Libovolný popis zápasu (volitelné)">
+            <select onchange="window.updateMatch('${id}', 'group', this.value)">${gOpts}</select>
+            ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.startMatchWithAnimation('${id}')">ZAČÍT ZÁPAS</button>` : 
+            `<div>
+                <select style="width:100%" onchange="window.updateMatch('${id}','status',this.value)">
+                    <option value="1. Třetina" ${m.status==='1. Třetina'?'selected':''}>1. Třetina</option>
+                    <option value="Po 1. Třetině" ${m.status==='Po 1. Třetině'?'selected':''}>Po 1. Třetině</option>
+                    <option value="2. Třetina" ${m.status==='2. Třetina'?'selected':''}>2. Třetina</option>
+                    <option value="Po 2. Třetině" ${m.status==='Po 2. Třetině'?'selected':''}>Po 2. Třetině</option>
+                    <option value="3. Třetina" ${m.status==='3. Třetina'?'selected':''}>3. Třetina</option>
+                    <option value="Po 3. Třetině" ${m.status==='Po 3. Třetině'?'selected':''}>Po 3. Třetině</option>
+                    <option value="Prodloužení" ${m.status==='Prodloužení'?'selected':''}>Prodloužení</option>
+                    <option value="Po prodloužení" ${m.status==='Po prodloužení'?'selected':''}>Po prodloužení</option>
+                    <option value="Nájezdy" ${m.status==='Nájezdy'?'selected':''}>Nájezdy</option>
+                    <option value="Přerušeno" ${m.status==='Přerušeno'?'selected':''}>Přerušeno</option>
+                    <option value="Konec" ${m.status==='Konec'?'selected':''}>Konec</option>
+                    <option value="Dohráno" ${m.status==='Dohráno'?'selected':''}>Dohráno</option>
+                </select>
+                <div class="score-control">
+                    <div style="text-align:center">
+                        <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 0, -1)">-</button>
+                        <span class="score-num">${sH}</span>
+                        <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 0, 1)">+</button>
+                    </div>
+                    <span style="font-size:20px">:</span>
+                    <div style="text-align:center">
+                        <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 1, -1)">-</button>
+                        <span class="score-num">${sA}</span>
+                        <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 1, 1)">+</button>
+                    </div>
+                </div>
+            </div>`}
+            <div style="margin-top:8px; display:flex; gap:5px;">
+                <button class="${m.status==='Konec'?'btn-gold':'btn-disabled'}" onclick="window.evaluateMatch('${id}')">VYHODNOTIT</button>
+                <button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít':'Zavřít'}</button>
+                <button class="btn-danger" onclick="window.deleteMatch('${id}')">X</button>
+            </div>
+        </div>`;
     }
 
     function renderMain() {
