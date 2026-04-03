@@ -561,9 +561,16 @@
             color: #94a3b8; 
             display: block; 
         }
+        
+        .player-link {
+            color: #3b82f6;
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: bold;
+        }
 
         /* MODAL SÁZENÍ - ROZŠÍŘENÉ */
-        #betSelectorOverlay { 
+        #betSelectorOverlay, #playerHistoryOverlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); z-index: 10000; display: none; 
             align-items: center; justify-content: center; backdrop-filter: blur(5px);
@@ -695,6 +702,14 @@
 
     <div id="intro">
         <img src="https://cdn-icons-png.flaticon.com/512/4242/4242141.png" class="logo-intro">
+    </div>
+
+    <div id="playerHistoryOverlay">
+        <div class="auth-box" style="max-width: 450px; width: 95%;">
+            <h3 id="histPlayerName" style="color:#3b82f6; margin:0 0 10px 0;">Historie hráče</h3>
+            <div id="playerHistoryTableWrap" style="max-height: 400px; overflow-y: auto;"></div>
+            <button onclick="document.getElementById('playerHistoryOverlay').style.display='none'" class="btn-alt" style="width:100%; margin-top:15px;">Zavřít</button>
+        </div>
     </div>
 
     <div id="betSelectorOverlay">
@@ -1090,6 +1105,34 @@
         }
     };
 
+    // FUNKCE PRO ZOBRAZENÍ HISTORIE CIZÍHO HRÁČE
+    window.showPlayerHistory = (pid) => {
+        const p = state.players[pid];
+        if(!p) return;
+        
+        document.getElementById('histPlayerName').innerText = `Historie: ${p.name || 'Borec'}`;
+        const wrap = document.getElementById('playerHistoryTableWrap');
+        
+        let html = '<table class="hist-table">';
+        const histArr = Object.values(p.history || {}).sort((a,b) => b.time - a.time);
+        
+        if(histArr.length === 0) {
+            html += '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">Žádná historie</td></tr>';
+        } else {
+            histArr.forEach(h => {
+                const rowClass = h.type === "gold" ? "hist-row-gold" : (h.type === "win" ? "hist-row-win" : "hist-row-loss");
+                html += `<tr class="${rowClass}">
+                    <td>${h.match.replace('(result)', '(výsledek)').replace('(score)', '(skóre)').replace('(goals)', '(góly)')}</td>
+                    <td>T:${h.tip}</td>
+                    <td>V:${h.score}</td>
+                    <td>${h.gain > 0 ? '+' : ''}${h.gain} TC</td>
+                </tr>`;
+            });
+        }
+        wrap.innerHTML = html + '</table>';
+        document.getElementById('playerHistoryOverlay').style.display = 'flex';
+    };
+
     // EVALUACE ZÁPASŮ - OPRAVENO PRO VŠECHNY
     window.evaluateMatch = (mId) => {
         const m = state.matches[mId];
@@ -1276,7 +1319,7 @@
 
         playerIds.forEach(pid => {
             const p = state.players[pid];
-            bHtml += `<tr><td data-label="Hráč"><b>${p.name || 'Borec'}</b></td>`;
+            bHtml += `<tr><td data-label="Hráč"><b class="player-link" onclick="window.showPlayerHistory('${pid}')">${p.name || 'Borec'}</b></td>`;
             activeMids.forEach(mid => {
                 const b = p.bets ? p.bets[mid] : null;
                 const m = state.matches[mid];
@@ -1566,7 +1609,12 @@
                     }
                 }); 
             }
-            hHtml += `<tr class="${pid===state.pId?'my-row':''}"><td>${idx+1}.</td><td>${p.name||'Borec'}</td><td><b>${p.balance||0}</b></td><td>${bH}</td></tr>`;
+            hHtml += `<tr class="${pid===state.pId?'my-row':''}">
+                <td>${idx+1}.</td>
+                <td><span class="player-link" onclick="window.showPlayerHistory('${pid}')">${p.name||'Borec'}</span></td>
+                <td><b>${p.balance||0}</b></td>
+                <td>${bH}</td>
+            </tr>`;
         });
         table.innerHTML = hHtml;
     }
