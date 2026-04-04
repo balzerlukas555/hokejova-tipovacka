@@ -341,12 +341,28 @@
             animation: goalBounce 0.8s infinite ease-in-out;
         }
 
-        .goal-text {
+        /* UPRAVENÝ TEXT GÓLU S BLIKÁNÍM A JMÉNEM */
+        .goal-text-container {
             color: #fbbf24;
             font-weight: 900;
             font-size: 24px;
             margin-top: 5px;
-            text-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.8), 0 0 20px rgba(0, 0, 0, 1);
+            text-align: center;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .goal-text-flash {
+            animation: flashText 1.5s infinite;
+        }
+
+        @keyframes flashText {
+            0%, 45% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0; transform: scale(0.8); }
+            55%, 100% { opacity: 1; transform: scale(1); }
         }
 
         /* STYLY PRO VYHODNOCENÍ */
@@ -864,10 +880,8 @@
         if (cfg && cfg.onesignal_app_id) {
             state.config = cfg;
             
-            // Inicializace OneSignal kompatibilní s iOS/PWA - OPRAVENO
             window.OneSignalDeferred = window.OneSignalDeferred || [];
             window.OneSignalDeferred.push(async function(OneSignal) {
-                // SDK se inicializuje samo z headu, zde jen vyvoláme permission prompt
                 if (OneSignal.Notifications.permission === false || OneSignal.Notifications.permission === "default") {
                     await OneSignal.Notifications.requestPermission();
                 }
@@ -875,7 +889,6 @@
         }
     });
 
-    // ONE SIGNAL PUSH FUNCTION (Nyní používá klíče z databáze)
     window.sendPushNotification = (title, message) => {
         const appId = state.config?.onesignal_app_id;
         const restKey = state.config?.onesignal_rest_key;
@@ -897,7 +910,6 @@
         }).catch(e => console.error("Push Error:", e));
     };
 
-    // POMOCNÁ FUNKCE PRO ŘAZENÍ ZÁPASŮ PODLE DATA
     const parseMatchDate = (dStr) => {
         try {
             const [datePart, timePart] = dStr.split(" ");
@@ -954,15 +966,12 @@
         }
     });
 
-    // GLOBÁLNÍ FUNKCE
-
     window.addEventListener('load', () => {
         setTimeout(() => {
             document.getElementById('intro').classList.add('hidden');
         }, 1200);
     });
 
-    // UPRAVENO: Inteligentní špendlík
     window.togglePin = (mId, event) => {
         event.stopPropagation();
         const m = state.matches[mId];
@@ -972,7 +981,6 @@
         let hiddenLive = JSON.parse(localStorage.getItem('hiddenLiveMatches') || "[]");
 
         if(isLiveOrFinished) {
-            // U probíhajících zápasů špendlík slouží ke schování z "připnutých"
             if(hiddenLive.includes(mId)) {
                 hiddenLive = hiddenLive.filter(id => id !== mId);
             } else {
@@ -980,7 +988,6 @@
             }
             localStorage.setItem('hiddenLiveMatches', JSON.stringify(hiddenLive));
         } else {
-            // U plánovaných zápasů klasické připínání
             if(pinned.includes(mId)) {
                 pinned = pinned.filter(id => id !== mId);
             } else {
@@ -1025,7 +1032,6 @@
     window.updateMatch = (id, field, val) => {
         update(ref(db, `matches/${id}`), { [field]: val });
         
-        // PUSH NOTIFIKACE PŘI ZMĚNĚ STAVU (MIMO SKÓRE)
         if (field === 'status') {
             const m = state.matches[id];
             if (val === 'Konec') {
@@ -1036,10 +1042,8 @@
         }
     };
 
-    // NOVÁ FUNKCE PRO START ZÁPASU S ANIMACÍ - OPRAVENO PRO VŠECHNY
     window.startMatchWithAnimation = (id) => {
         const m = state.matches[id];
-        // Nastavení stavů v DB + zápis času animace pro ostatní
         update(ref(db, `matches/${id}`), { 
             status: '1. Třetina', 
             closed: true, 
@@ -1051,14 +1055,27 @@
     window.changeScore = (id, teamIdx, delta) => {
         const m = state.matches[id];
         let parts = m.score.split(":").map(Number);
+        
+        // UPRAVENO: Prompt na jméno střelce při zvýšení skóre
+        let scorer = null;
+        if (delta > 0) {
+            scorer = prompt("Zadej jméno střelce gólu:");
+            if (scorer) {
+                // Dočasně uložíme jméno do DB zápasu, aby se přeneslo všem
+                update(ref(db, `matches/${id}`), { lastScorer: scorer });
+            } else {
+                update(ref(db, `matches/${id}`), { lastScorer: "" });
+            }
+        }
+
         parts[teamIdx] = Math.max(0, parts[teamIdx] + delta);
         const newScore = parts.join(":");
         window.updateMatch(id, 'score', newScore);
 
-        // TRIGGER PUSH ON SCORE CHANGE
         if (delta > 0) {
             const teamName = teamIdx === 0 ? m.home : m.away;
-            window.sendPushNotification(`⚽ GÓÓÓL! (${teamName})`, `${m.home} ${newScore} ${m.away}`);
+            const pushMsg = scorer ? `${m.home} ${newScore} ${m.away} (Gól: ${scorer})` : `${m.home} ${newScore} ${m.away}`;
+            window.sendPushNotification(`⚽ GÓÓÓL! (${teamName})`, pushMsg);
         }
     };
 
@@ -1105,7 +1122,6 @@
         }
     };
 
-    // FUNKCE PRO ZOBRAZENÍ HISTORIE CIZÍHO HRÁČE
     window.showPlayerHistory = (pid) => {
         const p = state.players[pid];
         if(!p) return;
@@ -1133,13 +1149,11 @@
         document.getElementById('playerHistoryOverlay').style.display = 'flex';
     };
 
-    // EVALUACE ZÁPASŮ - OPRAVENO PRO VŠECHNY
     window.evaluateMatch = (mId) => {
         const m = state.matches[mId];
         if(m.status !== "Konec" && m.status !== "Dohráno") return alert("Zápas musí být 'Konec'!");
         if(!confirm(`Vyhodnotit ${m.home}-${m.away} (${m.score})?`)) return;
 
-        // Zapíšeme do DB čas konce pro spuštění animace u všech
         update(ref(db, `matches/${mId}`), { 
             endAnim: Date.now(),
             status: "Dohráno", 
@@ -1198,7 +1212,6 @@
         });
     };
 
-    // SÁZENÍ LOGIKA
     window.selectBetPart = (type, val) => {
         const grid = document.getElementById(type === 'result' ? 'gridResult' : 'gridGoals');
         grid.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('active'));
@@ -1273,7 +1286,6 @@
         document.getElementById('betSelectorOverlay').style.display = 'none';
     };
 
-    // REALTIME DATA
     onValue(ref(db, "/"), snap => {
         const d = snap.val() || {};
         state.matches = d.matches || {}; 
@@ -1283,8 +1295,6 @@
         renderMain();
         renderCommunityTable();
     });
-
-    // RENDER FUNKCE
 
     function renderCommunityTable() {
         const header = document.getElementById("commHeader");
@@ -1357,7 +1367,6 @@
         const mList = document.getElementById("adminMatchesList"); mList.innerHTML = "";
         const sortedGroups = Object.keys(state.groups).sort((a,b) => state.groups[a].order - state.groups[b].order);
         
-        // SEKCE LIVE ZÁPASY (POUZE PRO ADMINA)
         const liveMatchIds = Object.keys(state.matches).filter(mid => {
             const st = state.matches[mid].status;
             return st !== "Plánováno" && st !== "Dohráno";
@@ -1375,12 +1384,9 @@
         [...sortedGroups, "none"].forEach(gId => {
             const gMatchesRaw = Object.keys(state.matches).filter(mid => state.matches[mid].group === gId);
             if(gMatchesRaw.length === 0 && gId !== "none") return;
-            
             const gMatches = sortMatchesByDate(gMatchesRaw);
-            
             const gName = gId === "none" ? "Ostatní / Bez kategorie" : state.groups[gId].name;
             let groupHtml = `<div style="margin-top:20px; border-bottom:1px solid #3b82f6; padding-bottom:5px; margin-bottom:10px; color:#3b82f6; font-weight:bold; font-size:14px;">${gName.toUpperCase()}</div>`;
-            
             gMatches.forEach(id => {
                 groupHtml += renderMatchAdminBox(id);
             });
@@ -1401,7 +1407,6 @@
         });
     }
 
-    // POMOCNÁ FUNKCE PRO ADMIN BOX ZÁPASU
     function renderMatchAdminBox(id) {
         const m = state.matches[id];
         let gOpts = `<option value="none">Bez skupiny</option>`;
@@ -1477,7 +1482,6 @@
         const container = document.getElementById("matchesContainer"); container.innerHTML = "";
         const sortedGroups = Object.keys(state.groups).sort((a,b) => state.groups[a].order - state.groups[b].order);
         
-        // NAČTENÍ ŠPENDLÍKŮ
         const pinnedIds = JSON.parse(localStorage.getItem('pinnedMatches') || "[]");
         const hiddenLiveIds = JSON.parse(localStorage.getItem('hiddenLiveMatches') || "[]");
 
@@ -1510,11 +1514,10 @@
                 const isF = m.status === 'Dohráno';
                 const isLive = m.status !== "Plánováno" && !isF;
                 
-                // LOGIKA PŘIPNUTÍ
                 const isPinned = pinnedIds.includes(mId) || ((isLive || m.status === 'Konec') && !hiddenLiveIds.includes(mId));
                 const isDisabled = m.status !== "Plánováno" || m.closed === true || isLocked;
 
-                // DETEKCE GÓLU (Pouze UI Animace)
+                // DETEKCE GÓLU
                 let scoringTeam = null;
                 if (state.lastScores[mId] && state.lastScores[mId] !== m.score && m.status !== "Plánováno") {
                     const [oldH, oldA] = state.lastScores[mId].split(":").map(Number);
@@ -1523,8 +1526,12 @@
                     else if (newA > oldA) scoringTeam = "away";
                     if (scoringTeam) {
                         if (!state.activeGoalAnimations.has(mId)) {
-                            state.activeGoalAnimations.set(mId, scoringTeam === "home" ? m.homeLogo : m.awayLogo);
-                            setTimeout(() => { state.activeGoalAnimations.delete(mId); renderMain(); }, 3500);
+                            // Dočasně uložíme logo a střelce pro animaci
+                            state.activeGoalAnimations.set(mId, {
+                                logo: scoringTeam === "home" ? m.homeLogo : m.awayLogo,
+                                scorer: m.lastScorer || ""
+                            });
+                            setTimeout(() => { state.activeGoalAnimations.delete(mId); renderMain(); }, 5000);
                         }
                     }
                 }
@@ -1539,11 +1546,9 @@
                 const hLogoHtml = m.homeLogo ? `<img src="${m.homeLogo}" class="team-logo">` : "";
                 const aLogoHtml = m.awayLogo ? `<img src="${m.awayLogo}" class="team-logo">` : "";
 
-                // --- OPRAVENÁ OVERLAY LOGIKA PRO VŠECHNY ---
                 let currentOverlay = "";
                 const now = Date.now();
                 
-                // 1. Animace STARTU (běží 5 sekund od startu zapsaného v DB)
                 if (m.startAnim && (now - m.startAnim < 5000)) {
                     currentOverlay = `
                         <div class="start-overlay">
@@ -1554,9 +1559,8 @@
                             </div>
                             <div class="start-text-anim">ZÁPAS ZAČÍNÁ!</div>
                         </div>`;
-                    setTimeout(renderMain, 5000 - (now - m.startAnim)); // Překreslit po skončení
+                    setTimeout(renderMain, 5000 - (now - m.startAnim));
                 } 
-                // 2. Animace KONCE (běží 5 sekund od vyhodnocení zapsaného v DB)
                 else if (m.endAnim && (now - m.endAnim < 5000)) {
                     currentOverlay = `
                         <div class="evaluate-overlay">
@@ -1567,12 +1571,18 @@
                             </div>
                             <div class="eval-end-text">ZÁPAS SKONČIL</div>
                         </div>`;
-                    setTimeout(renderMain, 5000 - (now - m.endAnim)); // Překreslit po skončení
+                    setTimeout(renderMain, 5000 - (now - m.endAnim));
                 }
-                // 3. Animace GÓLU (lokální stav)
+                // UPRAVENÁ ANIMACE GÓLU
                 else if (state.activeGoalAnimations.has(mId)) {
-                    const scoringLogo = state.activeGoalAnimations.get(mId);
-                    currentOverlay = `<div class="goal-overlay"><img src="${scoringLogo}" class="goal-logo"><div class="goal-text">GÓÓÓL!</div></div>`;
+                    const animData = state.activeGoalAnimations.get(mId);
+                    currentOverlay = `
+                        <div class="goal-overlay">
+                            <img src="${animData.logo}" class="goal-logo">
+                            <div class="goal-text-container">
+                                <div class="goal-text-flash">${animData.scorer ? animData.scorer.toUpperCase() : 'GÓÓÓL!'}</div>
+                            </div>
+                        </div>`;
                 }
 
                 gHtml += `<div class="match ${isPinned ? 'pinned' : ''}">
