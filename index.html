@@ -306,44 +306,31 @@
             z-index: 10;
         }
 
-        /* Sekce Start zápasu v upraveném start-overlay */
-        .start-anim-home-solo {
-            width: 90px; height: 90px; object-fit: contain;
-            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
-            animation: soloEnter 0.5s ease-out forwards;
+        .anim-home {
+            width: 80px; height: 80px; object-fit: contain;
+            filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
+            animation: homeEnter 0.6s ease-out forwards, homeShift 0.5s 1.2s ease-in-out forwards;
         }
 
-        .start-anim-versus-wrap {
-            display: flex; align-items: center; justify-content: center;
-            animation: fadeInSimple 0.4s ease-out forwards;
-        }
-
-        .start-logo-side {
-            width: 65px; height: 65px; object-fit: contain;
-            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+        .anim-away {
+            width: 80px; height: 80px; object-fit: contain;
+            opacity: 0;
+            filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
+            animation: awayEnter 0.6s 1.7s ease-out forwards;
         }
 
         .vs-text-anim {
-            color: #3b82f6; font-weight: 900; font-size: 30px;
+            color: #3b82f6; font-weight: 900; font-size: 32px;
+            opacity: 0;
             margin: 0 15px;
             text-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+            animation: fadeInSimple 0.4s 2s forwards;
         }
 
         .start-text-anim {
-            color: #fbbf24; font-weight: 900; font-size: 22px; margin-top: 15px;
-            text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
-            animation: bounceIn 0.5s ease-out forwards;
-        }
-
-        @keyframes soloEnter {
-            from { transform: scale(0); opacity: 0; }
-            to { transform: scale(1.1); opacity: 1; }
-        }
-
-        @keyframes bounceIn {
-            0% { transform: scale(0.3); opacity: 0; }
-            70% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
+            color: #3b82f6; font-weight: 900; font-size: 24px; margin-top: 20px;
+            opacity: 0;
+            animation: fadeInSimple 0.5s 2.5s forwards;
         }
 
         .goal-logo {
@@ -392,8 +379,23 @@
             text-transform: uppercase;
         }
 
+        @keyframes homeEnter {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1.2); opacity: 1; }
+        }
+
+        @keyframes homeShift {
+            from { transform: translateX(0); }
+            to { transform: translateX(-10px); }
+        }
+
+        @keyframes awayEnter {
+            from { transform: scale(0) translateX(50px); opacity: 0; }
+            to { transform: scale(1.2) translateX(0); opacity: 1; }
+        }
+
         @keyframes fadeInSimple {
-            from { opacity: 0; transform: translateY(5px); }
+            from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
@@ -871,7 +873,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map(), animInterval: null };
+    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
 
     // NAČTENÍ KONFIGURACE (OneSignal Klíče)
     onValue(ref(db, "config"), (snapshot) => {
@@ -969,17 +971,6 @@
         setTimeout(() => {
             document.getElementById('intro').classList.add('hidden');
         }, 1200);
-        
-        // JEDINÝ SPOLEČNÝ INTERVAL PRO ANIMACE (proti blikání)
-        state.animInterval = setInterval(() => {
-            const hasAnim = Object.values(state.matches).some(m => {
-                const now = Date.now();
-                return (m.startAnim && (now - m.startAnim < 6000)) || 
-                       (m.endAnim && (now - m.endAnim < 5000));
-            }) || state.activeGoalAnimations.size > 0;
-            
-            if (hasAnim) renderMain();
-        }, 500);
     });
 
     window.togglePin = (mId, event) => {
@@ -1559,33 +1550,17 @@
                 let currentOverlay = "";
                 const now = Date.now();
                 
-                // UPRAVENÁ SEKVENCE STARTU ZÁPASU (6s celkem)
-                if (m.startAnim && (now - m.startAnim < 6000)) {
-                    const elapsed = now - m.startAnim;
-                    if (elapsed < 2000) {
-                        // Prvních 2s: Jen logo domácích uprostřed
-                        currentOverlay = `
-                            <div class="start-overlay">
-                                <img src="${m.homeLogo}" class="start-anim-home-solo">
-                            </div>`;
-                    } else {
-                        // Další 4s: Logo vlevo, VS, logo vpravo + text Start zápasu
-                        currentOverlay = `
-                            <div class="start-overlay">
-                                <div class="start-anim-versus-wrap">
-                                    <div style="text-align:center">
-                                        <img src="${m.homeLogo}" class="start-logo-side">
-                                        <div style="font-size:12px; margin-top:5px; font-weight:bold;">${m.home}</div>
-                                    </div>
-                                    <div class="vs-text-anim">VS</div>
-                                    <div style="text-align:center">
-                                        <img src="${m.awayLogo}" class="start-logo-side">
-                                        <div style="font-size:12px; margin-top:5px; font-weight:bold;">${m.away}</div>
-                                    </div>
-                                </div>
-                                <div class="start-text-anim">START ZÁPASU</div>
-                            </div>`;
-                    }
+                if (m.startAnim && (now - m.startAnim < 5000)) {
+                    currentOverlay = `
+                        <div class="start-overlay">
+                            <div style="display: flex; align-items: center; justify-content: center;">
+                                <img src="${m.homeLogo}" class="anim-home">
+                                <div class="vs-text-anim">VS</div>
+                                <img src="${m.awayLogo}" class="anim-away">
+                            </div>
+                            <div class="start-text-anim">ZÁPAS ZAČÍNÁ!</div>
+                        </div>`;
+                    setTimeout(renderMain, 5000 - (now - m.startAnim));
                 } 
                 else if (m.endAnim && (now - m.endAnim < 5000)) {
                     currentOverlay = `
@@ -1597,6 +1572,7 @@
                             </div>
                             <div class="eval-end-text">ZÁPAS SKONČIL</div>
                         </div>`;
+                    setTimeout(renderMain, 5000 - (now - m.endAnim));
                 }
                 // UPRAVENÁ ANIMACE GÓLU - PŘIDÁN TEXT GÓÓÓL
                 else if (state.activeGoalAnimations.has(mId)) {
