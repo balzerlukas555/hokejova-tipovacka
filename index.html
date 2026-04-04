@@ -349,8 +349,9 @@
             margin-top: 5px;
             text-shadow: 0 0 10px rgba(251, 191, 36, 0.8), 0 0 20px rgba(0, 0, 0, 1);
             text-align: center;
-            height: 30px;
+            height: auto;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
         }
@@ -1573,14 +1574,15 @@
                         </div>`;
                     setTimeout(renderMain, 5000 - (now - m.endAnim));
                 }
-                // UPRAVENÁ ANIMACE GÓLU
+                // UPRAVENÁ ANIMACE GÓLU - PŘIDÁN TEXT GÓÓÓL
                 else if (state.activeGoalAnimations.has(mId)) {
                     const animData = state.activeGoalAnimations.get(mId);
                     currentOverlay = `
                         <div class="goal-overlay">
                             <img src="${animData.logo}" class="goal-logo">
                             <div class="goal-text-container">
-                                <div class="goal-text-flash">${animData.scorer ? animData.scorer.toUpperCase() : 'GÓÓÓL!'}</div>
+                                <div class="goal-text-flash" style="margin-bottom: 5px;">GÓÓÓL!</div>
+                                <div style="font-size: 18px; color: #fff; text-transform: uppercase;">${animData.scorer || ''}</div>
                             </div>
                         </div>`;
                 }
