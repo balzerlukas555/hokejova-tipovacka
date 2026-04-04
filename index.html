@@ -871,7 +871,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
+    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map(), animInterval: null };
 
     // NAČTENÍ KONFIGURACE (OneSignal Klíče)
     onValue(ref(db, "config"), (snapshot) => {
@@ -969,6 +969,17 @@
         setTimeout(() => {
             document.getElementById('intro').classList.add('hidden');
         }, 1200);
+        
+        // JEDINÝ SPOLEČNÝ INTERVAL PRO ANIMACE (proti blikání)
+        state.animInterval = setInterval(() => {
+            const hasAnim = Object.values(state.matches).some(m => {
+                const now = Date.now();
+                return (m.startAnim && (now - m.startAnim < 6000)) || 
+                       (m.endAnim && (now - m.endAnim < 5000));
+            }) || state.activeGoalAnimations.size > 0;
+            
+            if (hasAnim) renderMain();
+        }, 500);
     });
 
     window.togglePin = (mId, event) => {
@@ -1575,7 +1586,6 @@
                                 <div class="start-text-anim">START ZÁPASU</div>
                             </div>`;
                     }
-                    setTimeout(renderMain, 100); // Častější render pro plynulý přepost sekvence
                 } 
                 else if (m.endAnim && (now - m.endAnim < 5000)) {
                     currentOverlay = `
@@ -1587,7 +1597,6 @@
                             </div>
                             <div class="eval-end-text">ZÁPAS SKONČIL</div>
                         </div>`;
-                    setTimeout(renderMain, 5000 - (now - m.endAnim));
                 }
                 // UPRAVENÁ ANIMACE GÓLU - PŘIDÁN TEXT GÓÓÓL
                 else if (state.activeGoalAnimations.has(mId)) {
