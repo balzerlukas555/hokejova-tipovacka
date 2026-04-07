@@ -307,26 +307,33 @@
             box-sizing: border-box; /* Zajistí, že padding neovlivní velikost */
         }
 
-        /* Nové animace pro začátek zápasu */
+        /* Úprava začátku zápasu na 6s a vycentrování */
         .anim-home-only {
             width: 80px; height: 80px; object-fit: contain;
-            animation: homeCenterPop 1.5s ease-in-out forwards;
+            animation: homeCenterPop 6s ease-in-out forwards; /* Změněno na 6s */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
         }
 
         @keyframes homeCenterPop {
-            0% { transform: scale(0); opacity: 0; }
-            30% { transform: scale(1.2); opacity: 1; }
-            70% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(0); opacity: 0; }
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            15% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            45% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            60% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
         }
 
         .anim-final-stage {
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             opacity: 0;
-            animation: fadeInSimple 0.5s 1.7s forwards;
+            animation: fadeInSimple 0.5s 3.8s forwards; /* Posunuto kvůli delší první fázi */
             width: 100%;
+            height: 100%;
         }
 
         .anim-home, .anim-away {
@@ -343,7 +350,7 @@
         .start-text-anim {
             color: #3b82f6; font-weight: 900; font-size: 18px; margin-top: 10px;
             opacity: 0;
-            animation: fadeInSimple 0.5s 2.2s forwards;
+            animation: fadeInSimple 0.5s 4.3s forwards; /* Posunuto */
         }
 
         .goal-logo {
@@ -1547,8 +1554,8 @@
                 let currentOverlay = "";
                 const now = Date.now();
                 
-                // UPRAVENÁ SEKVENCE STARTU ZÁPASU (Krok 1, 2, 3)
-                if (m.startAnim && (now - m.startAnim < 5000)) {
+                // UPRAVENÁ SEKVENCE STARTU ZÁPASU (Krok 1, 2, 3) - PRODLOUŽENO NA 6s
+                if (m.startAnim && (now - m.startAnim < 6000)) {
                     currentOverlay = `
                         <div class="start-overlay">
                             <img src="${m.homeLogo}" class="anim-home-only">
@@ -1561,7 +1568,7 @@
                                 <div class="start-text-anim">ZÁPAS ZAČÍNÁ!</div>
                             </div>
                         </div>`;
-                    setTimeout(renderMain, 5000 - (now - m.startAnim));
+                    setTimeout(renderMain, 6000 - (now - m.startAnim));
                 } 
                 else if (m.endAnim && (now - m.endAnim < 5000)) {
                     currentOverlay = `
