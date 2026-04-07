@@ -291,7 +291,7 @@
             transition: opacity 0.3s;
         }
 
-        /* ANIMACE GÓLU A ZAČÁTKU - UPRAVENÁ SEKVENCE */
+        /* ANIMACE GÓLU A ZAČÁTKU */
         .goal-overlay, .start-overlay, .evaluate-overlay {
             position: absolute;
             top: 0;
@@ -304,13 +304,12 @@
             align-items: center;
             justify-content: center;
             z-index: 10;
-            box-sizing: border-box; /* Zajistí, že padding neovlivní velikost */
+            box-sizing: border-box;
         }
 
-        /* Úprava začátku zápasu na 6s a vycentrování */
         .anim-home-only {
             width: 80px; height: 80px; object-fit: contain;
-            animation: homeCenterPop 6s ease-in-out forwards; /* Změněno na 6s */
+            animation: homeCenterPop 6s ease-in-out forwards;
             position: absolute;
             top: 50%;
             left: 50%;
@@ -331,26 +330,33 @@
             align-items: center;
             justify-content: center;
             opacity: 0;
-            animation: fadeInSimple 0.5s 3.8s forwards; /* Posunuto kvůli delší první fázi */
+            animation: fadeInSimple 0.5s 3.8s forwards;
             width: 100%;
             height: 100%;
         }
 
         .anim-home, .anim-away {
-            width: 50px; height: 50px; object-fit: contain;
+            width: 50px; 
+            height: 50px; 
+            object-fit: contain;
             filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
         }
 
         .vs-text-anim {
-            color: #3b82f6; font-weight: 900; font-size: 24px;
+            color: #3b82f6; 
+            font-weight: 900; 
+            font-size: 24px;
             margin: 0 10px;
             text-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
         }
 
         .start-text-anim {
-            color: #3b82f6; font-weight: 900; font-size: 18px; margin-top: 10px;
+            color: #3b82f6; 
+            font-weight: 900; 
+            font-size: 18px; 
+            margin-top: 10px;
             opacity: 0;
-            animation: fadeInSimple 0.5s 4.3s forwards; /* Posunuto */
+            animation: fadeInSimple 0.5s 4.3s forwards;
         }
 
         .goal-logo {
@@ -360,8 +366,7 @@
             filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
             animation: goalBounce 0.8s infinite ease-in-out;
         }
-
-        /* UPRAVENÝ TEXT GÓLU S BLIKÁNÍM A JMÉNEM */
+        
         .goal-text-container {
             color: #fbbf24;
             font-weight: 900;
@@ -385,16 +390,24 @@
             55%, 100% { opacity: 1; transform: scale(1); }
         }
 
-        /* STYLY PRO VYHODNOCENÍ */
+        /* VYHODNOCENÍ */
         .eval-logo {
-            width: 50px; height: 50px; object-fit: contain;
+            width: 50px; 
+            height: 50px; 
+            object-fit: contain;
             filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
         }
         .eval-score {
-            font-size: 28px; font-weight: 900; color: #fff; margin: 0 15px;
+            font-size: 28px; 
+            font-weight: 900; 
+            color: #fff; 
+            margin: 0 15px;
         }
         .eval-end-text {
-            color: #ef4444; font-weight: 900; font-size: 18px; margin-top: 10px;
+            color: #ef4444; 
+            font-weight: 900; 
+            font-size: 18px;
+            margin-top: 10px;
             text-transform: uppercase;
         }
 
@@ -540,7 +553,6 @@
                 content: attr(data-label);
             }
             
-            /* ÚPRAVA PRO LIVE NA MOBILU */
             .community-table td.live-cell::before {
                 color: #f87171 !important;
             }
@@ -590,7 +602,7 @@
             font-weight: bold;
         }
 
-        /* MODAL SÁZENÍ - ROZŠÍŘENÉ */
+        /* SÁZENÍ */
         #betSelectorOverlay, #playerHistoryOverlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); z-index: 10000; display: none; 
@@ -744,8 +756,8 @@
                     <div class="bet-btn" onclick="window.selectBetPart('result', '0')">0</div>
                     <div class="bet-btn" onclick="window.selectBetPart('result', '2')">2</div>
                     <div class="bet-btn" onclick="window.selectBetPart('result', '1X')">1X</div>
-                    <div class="bet-btn" onclick="window.selectBetPart('result', 'X2')">X2</div>
                     <div class="bet-btn" onclick="window.selectBetPart('result', '12')">12</div>
+                    <div class="bet-btn" onclick="window.selectBetPart('result', 'X2')">X2</div>
                 </div>
                 <div class="stake-input-wrap"><input type="number" id="stakeResult" placeholder="Vklad (TC)"></div>
             </div>
@@ -879,7 +891,7 @@
     const auth = getAuth(app);
     let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
 
-    // NAČTENÍ KONFIGURACE (OneSignal Klíče)
+    // NAČTENÍ KONFIGURACE
     onValue(ref(db, "config"), (snapshot) => {
         const cfg = snapshot.val();
         if (cfg && cfg.onesignal_app_id) {
@@ -1061,12 +1073,10 @@
         const m = state.matches[id];
         let parts = m.score.split(":").map(Number);
         
-        // UPRAVENO: Prompt na jméno střelce při zvýšení skóre
         let scorer = null;
         if (delta > 0) {
             scorer = prompt("Zadej jméno střelce gólu:");
             if (scorer) {
-                // Dočasně uložíme jméno do DB zápasu, aby se přeneslo všem
                 update(ref(db, `matches/${id}`), { lastScorer: scorer });
             } else {
                 update(ref(db, `matches/${id}`), { lastScorer: "" });
@@ -1531,7 +1541,6 @@
                     else if (newA > oldA) scoringTeam = "away";
                     if (scoringTeam) {
                         if (!state.activeGoalAnimations.has(mId)) {
-                            // Dočasně uložíme logo a střelce pro animaci
                             state.activeGoalAnimations.set(mId, {
                                 logo: scoringTeam === "home" ? m.homeLogo : m.awayLogo,
                                 scorer: m.lastScorer || ""
@@ -1554,7 +1563,6 @@
                 let currentOverlay = "";
                 const now = Date.now();
                 
-                // UPRAVENÁ SEKVENCE STARTU ZÁPASU (Krok 1, 2, 3) - PRODLOUŽENO NA 6s
                 if (m.startAnim && (now - m.startAnim < 6000)) {
                     currentOverlay = `
                         <div class="start-overlay">
@@ -1582,7 +1590,6 @@
                         </div>`;
                     setTimeout(renderMain, 5000 - (now - m.endAnim));
                 }
-                // UPRAVENÁ ANIMACE GÓLU - PŘIDÁN TEXT GÓÓÓL
                 else if (state.activeGoalAnimations.has(mId)) {
                     const animData = state.activeGoalAnimations.get(mId);
                     currentOverlay = `
