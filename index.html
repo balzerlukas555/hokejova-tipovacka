@@ -63,7 +63,7 @@
             align-items: center; 
             justify-content: center; 
             z-index: 9999; 
-            transition: opacity 0.8s ease-out; 
+            transition: opacity 1.5s ease-out; 
             pointer-events: all; 
         }
 
@@ -73,7 +73,7 @@
         }
 
         .logo-intro { 
-            width: 120px; 
+            width: 200px; /* Zvětšeno z 120px */
         }
         
         /* BODY STYLY */
@@ -304,11 +304,12 @@
             align-items: center;
             justify-content: center;
             z-index: 10;
+            box-sizing: border-box; /* Zajistí, že padding neovlivní velikost */
         }
 
         /* Nové animace pro začátek zápasu */
         .anim-home-only {
-            width: 100px; height: 100px; object-fit: contain;
+            width: 80px; height: 80px; object-fit: contain;
             animation: homeCenterPop 1.5s ease-in-out forwards;
         }
 
@@ -325,33 +326,29 @@
             align-items: center;
             opacity: 0;
             animation: fadeInSimple 0.5s 1.7s forwards;
+            width: 100%;
         }
 
-        .anim-home {
-            width: 70px; height: 70px; object-fit: contain;
-            filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
-        }
-
-        .anim-away {
-            width: 70px; height: 70px; object-fit: contain;
+        .anim-home, .anim-away {
+            width: 50px; height: 50px; object-fit: contain;
             filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
         }
 
         .vs-text-anim {
-            color: #3b82f6; font-weight: 900; font-size: 32px;
-            margin: 0 15px;
+            color: #3b82f6; font-weight: 900; font-size: 24px;
+            margin: 0 10px;
             text-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
         }
 
         .start-text-anim {
-            color: #3b82f6; font-weight: 900; font-size: 24px; margin-top: 20px;
+            color: #3b82f6; font-weight: 900; font-size: 18px; margin-top: 10px;
             opacity: 0;
             animation: fadeInSimple 0.5s 2.2s forwards;
         }
 
         .goal-logo {
-            width: 70px;
-            height: 70px;
+            width: 60px;
+            height: 60px;
             object-fit: contain;
             filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
             animation: goalBounce 0.8s infinite ease-in-out;
@@ -361,11 +358,10 @@
         .goal-text-container {
             color: #fbbf24;
             font-weight: 900;
-            font-size: 24px;
+            font-size: 20px;
             margin-top: 5px;
             text-shadow: 0 0 10px rgba(251, 191, 36, 0.8), 0 0 20px rgba(0, 0, 0, 1);
             text-align: center;
-            height: auto;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -384,14 +380,14 @@
 
         /* STYLY PRO VYHODNOCENÍ */
         .eval-logo {
-            width: 60px; height: 60px; object-fit: contain;
+            width: 50px; height: 50px; object-fit: contain;
             filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
         }
         .eval-score {
-            font-size: 36px; font-weight: 900; color: #fff; margin: 0 20px;
+            font-size: 28px; font-weight: 900; color: #fff; margin: 0 15px;
         }
         .eval-end-text {
-            color: #ef4444; font-weight: 900; font-size: 22px; margin-top: 15px;
+            color: #ef4444; font-weight: 900; font-size: 18px; margin-top: 10px;
             text-transform: uppercase;
         }
 
@@ -402,7 +398,7 @@
 
         @keyframes goalBounce {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2); }
+            50% { transform: scale(1.1); }
         }
 
         @keyframes fadeIn {
@@ -971,7 +967,7 @@
     window.addEventListener('load', () => {
         setTimeout(() => {
             document.getElementById('intro').classList.add('hidden');
-        }, 1200);
+        }, 3000); // Prodlouženo z 1200ms na 3000ms
     });
 
     window.togglePin = (mId, event) => {
