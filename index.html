@@ -443,6 +443,27 @@
             margin: 0 5px; 
         }
 
+        /* PRŮBĚH ZÁPASU TABULKA */
+        .match-timeline-table {
+            width: 100%;
+            margin-top: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            font-size: 13px;
+            border-collapse: collapse;
+            display: none;
+        }
+        .match-timeline-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            vertical-align: middle;
+        }
+        .timeline-logo {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+        }
+
         /* ADMIN SCORE CONTROLS */
         .score-control {
             display: flex;
@@ -1077,20 +1098,35 @@
         let scorer = null;
         if (delta > 0) {
             scorer = prompt("Zadej jméno střelce gólu:");
-            if (scorer) {
-                update(ref(db, `matches/${id}`), { lastScorer: scorer });
-            } else {
-                update(ref(db, `matches/${id}`), { lastScorer: "" });
-            }
+            if (!scorer) scorer = "S. Neuveden";
+            
+            // Uložit střelce do historie zápasu (timeline)
+            const timeline = m.timeline || [];
+            parts[teamIdx] = Math.max(0, parts[teamIdx] + delta);
+            const newScore = parts.join(":");
+            
+            timeline.push({
+                team: teamIdx === 0 ? "home" : "away",
+                scorer: scorer,
+                score: newScore,
+                time: Date.now()
+            });
+            
+            update(ref(db, `matches/${id}`), { 
+                lastScorer: scorer,
+                timeline: timeline
+            });
+        } else {
+            parts[teamIdx] = Math.max(0, parts[teamIdx] + delta);
         }
 
-        parts[teamIdx] = Math.max(0, parts[teamIdx] + delta);
         const newScore = parts.join(":");
         window.updateMatch(id, 'score', newScore);
 
         if (delta > 0) {
             const teamName = teamIdx === 0 ? m.home : m.away;
-            const pushMsg = scorer ? `${m.home} ${newScore} ${m.away} (Gól: ${scorer})` : `${m.home} ${newScore} ${m.away}`;
+            const finalScorer = m.lastScorer || "S. Neuveden";
+            const pushMsg = finalScorer ? `${m.home} ${newScore} ${m.away} (Gól: ${finalScorer})` : `${m.home} ${newScore} ${m.away}`;
             window.sendPushNotification(`⚽ GÓÓÓL! (${teamName})`, pushMsg);
         }
     };
@@ -1544,7 +1580,7 @@
                         if (!state.activeGoalAnimations.has(mId)) {
                             state.activeGoalAnimations.set(mId, {
                                 logo: scoringTeam === "home" ? m.homeLogo : m.awayLogo,
-                                scorer: m.lastScorer || ""
+                                scorer: m.lastScorer || "S. Neuveden"
                             });
                             setTimeout(() => { state.activeGoalAnimations.delete(mId); renderMain(); }, 5000);
                         }
@@ -1603,6 +1639,20 @@
                         </div>`;
                 }
 
+                // TABULKA PRŮBĚHU (Timeline)
+                let timelineRows = "";
+                if (m.timeline) {
+                    m.timeline.forEach(t => {
+                        const tLogo = t.team === "home" ? m.homeLogo : m.awayLogo;
+                        timelineRows += `
+                            <tr>
+                                <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
+                                <td style="text-align:left"><b>${t.scorer}</b></td>
+                                <td style="text-align:right; color:#3b82f6; font-weight:bold">(${t.score})</td>
+                            </tr>`;
+                    });
+                }
+
                 gHtml += `<div class="match ${isPinned ? 'pinned' : ''}">
                         ${currentOverlay}
                         <div class="match-header"><div><span class="pin-btn ${isPinned ? 'active' : ''}" onclick="window.togglePin('${mId}', event)">📌</span><span>${m.date}</span></div><span class="status-badge">${m.status}</span></div>
@@ -1616,6 +1666,13 @@
                         </div>
                         
                         <button onclick="window.placeBet('${mId}')" ${isDisabled ? 'disabled' : ''} style="width:100%">${isDisabled ? (isLocked ? 'Zamčeno' : 'Zavřeno') : btnTxt}</button>
+                        
+                        ${m.status !== "Plánováno" ? `
+                            <button class="btn-alt" style="width:100%; margin-top:5px; font-size:11px; padding:5px" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'table' ? 'none' : 'table'">Průběh zápasu</button>
+                            <table class="match-timeline-table">
+                                ${timelineRows || '<tr><td colspan="3" style="color:#94a3b8; padding:10px">Zatím žádné góly</td></tr>'}
+                            </table>
+                        ` : ''}
                     </div>`;
             });
             container.innerHTML += gHtml + "</div></div>";
