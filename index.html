@@ -1069,24 +1069,48 @@
     };
 
     window.updateMatch = (id, field, val) => {
+        const m = state.matches[id];
+        
+        // SPECIÁLNÍ LOGIKA PRO TIMELINE PŘI ZMĚNĚ STAVU (TŘETINY)
+        if (field === 'status' && m) {
+            const trackableStates = ["1. Třetina", "2. Třetina", "3. Třetina", "Prodloužení", "Nájezdy", "Konec"];
+            if (trackableStates.includes(val)) {
+                const timeline = m.timeline || [];
+                // Přidáme záznam o zahájení části hry
+                timeline.push({
+                    type: "period",
+                    text: val,
+                    time: Date.now()
+                });
+                update(ref(db, `matches/${id}`), { timeline: timeline });
+            }
+        }
+
         update(ref(db, `matches/${id}`), { [field]: val });
         
         if (field === 'status') {
-            const m = state.matches[id];
+            const mUpdated = state.matches[id];
             if (val === 'Konec') {
-                window.sendPushNotification('🏁 Konec zápasu!', `${m.home} ${m.score} ${m.away} - Zápas skončil.`);
+                window.sendPushNotification('🏁 Konec zápasu!', `${mUpdated.home} ${mUpdated.score} ${mUpdated.away} - Zápas skončil.`);
             } else if (val !== 'Dohráno' && val !== 'Plánováno') {
-                window.sendPushNotification('🏒 Stav zápasu se změnil', `${m.home} vs ${m.away} - Aktuální stav: ${val}`);
+                window.sendPushNotification('🏒 Stav zápasu se změnil', `${mUpdated.home} vs ${mUpdated.away} - Aktuální stav: ${val}`);
             }
         }
     };
 
     window.startMatchWithAnimation = (id) => {
         const m = state.matches[id];
+        const initialTimeline = [{
+            type: "period",
+            text: "1. Třetina",
+            time: Date.now()
+        }];
+
         update(ref(db, `matches/${id}`), { 
             status: '1. Třetina', 
             closed: true, 
-            startAnim: Date.now() 
+            startAnim: Date.now(),
+            timeline: initialTimeline
         });
         window.sendPushNotification('🏒 Zápas začal!', `${m.home} vs ${m.away}`);
     };
@@ -1106,6 +1130,7 @@
             const newScore = parts.join(":");
             
             timeline.push({
+                type: "goal",
                 team: teamIdx === 0 ? "home" : "away",
                 scorer: scorer,
                 score: newScore,
@@ -1643,13 +1668,22 @@
                 let timelineRows = "";
                 if (m.timeline) {
                     m.timeline.forEach(t => {
-                        const tLogo = t.team === "home" ? m.homeLogo : m.awayLogo;
-                        timelineRows += `
-                            <tr>
-                                <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
-                                <td style="text-align:left"><b>${t.scorer}</b></td>
-                                <td style="text-align:right; color:#3b82f6; font-weight:bold">(${t.score})</td>
-                            </tr>`;
+                        if (t.type === "period") {
+                            timelineRows += `
+                                <tr>
+                                    <td colspan="3" style="text-align:center; background: rgba(59, 130, 246, 0.1); color: #3b82f6; font-weight: bold; font-size: 11px; padding: 5px 8px;">
+                                        --- ${t.text.toUpperCase()} ---
+                                    </td>
+                                </tr>`;
+                        } else {
+                            const tLogo = t.team === "home" ? m.homeLogo : m.awayLogo;
+                            timelineRows += `
+                                <tr>
+                                    <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
+                                    <td style="text-align:left"><b>${t.scorer}</b></td>
+                                    <td style="text-align:right; color:#3b82f6; font-weight:bold">(${t.score})</td>
+                                </tr>`;
+                        }
                     });
                 }
 
