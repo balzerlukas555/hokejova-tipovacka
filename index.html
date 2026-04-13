@@ -1008,7 +1008,7 @@
     window.addEventListener('load', () => {
         setTimeout(() => {
             document.getElementById('intro').classList.add('hidden');
-        }, 3000); // Prodlouženo z 1200ms na 3000ms
+        }, 3000);
     });
 
     window.togglePin = (mId, event) => {
@@ -1071,12 +1071,11 @@
     window.updateMatch = (id, field, val) => {
         const m = state.matches[id];
         
-        // SPECIÁLNÍ LOGIKA PRO TIMELINE PŘI ZMĚNĚ STAVU (TŘETINY)
+        // TIMELINE
         if (field === 'status' && m) {
             const trackableStates = ["1. Třetina", "2. Třetina", "3. Třetina", "Prodloužení", "Nájezdy", "Konec"];
             if (trackableStates.includes(val)) {
                 const timeline = m.timeline || [];
-                // Přidáme záznam o zahájení části hry
                 timeline.push({
                     type: "period",
                     text: val,
@@ -1124,7 +1123,6 @@
             scorer = prompt("Zadej jméno střelce gólu:");
             if (!scorer) scorer = "S. Neuveden";
             
-            // Uložit střelce do historie zápasu (timeline)
             const timeline = m.timeline || [];
             parts[teamIdx] = Math.max(0, parts[teamIdx] + delta);
             const newScore = parts.join(":");
@@ -1664,7 +1662,7 @@
                         </div>`;
                 }
 
-                // TABULKA PRŮBĚHU (Timeline)
+                // TIMELINE TABULKA
                 let timelineRows = "";
                 if (m.timeline) {
                     m.timeline.forEach(t => {
@@ -1672,7 +1670,7 @@
                             timelineRows += `
                                 <tr>
                                     <td colspan="3" style="text-align:center; background: rgba(59, 130, 246, 0.1); color: #3b82f6; font-weight: bold; font-size: 11px; padding: 5px 8px;">
-                                        --- ${t.text.toUpperCase()} ---
+                                        ${t.text.toUpperCase()}
                                     </td>
                                 </tr>`;
                         } else {
