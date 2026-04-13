@@ -889,7 +889,7 @@
         </div>
 
         <div style="margin: 20px 0;">
-            <button onclick="window.adminLogin()" class="btn-alt">Admin sekce</button>
+            <button onclick="window.adminLogin()" class="btn-alt" style="display:none;">Admin sekce</button>
         </div>
     </div>
 
@@ -912,6 +912,8 @@
     const db = getDatabase(app);
     const auth = getAuth(app);
     let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
+
+    const ADMIN_UID = "ic18MLTfKyfu9uRt1Q2A8jxrbw73";
 
     // NAČTENÍ KONFIGURACE
     onValue(ref(db, "config"), (snapshot) => {
@@ -1008,7 +1010,7 @@
     window.addEventListener('load', () => {
         setTimeout(() => {
             document.getElementById('intro').classList.add('hidden');
-        }, 3000);
+        }, 3000); 
     });
 
     window.togglePin = (mId, event) => {
@@ -1044,7 +1046,11 @@
     };
 
     window.adminLogin = () => { 
-        if (prompt("Heslo:") === "Tip333") document.getElementById("adminPanel").style.display = "block"; 
+        if (state.pId === ADMIN_UID) {
+            document.getElementById("adminPanel").style.display = "block";
+        } else {
+            alert("Nemáš administrátorská oprávnění.");
+        }
     };
 
     window.addGroup = () => {
@@ -1071,7 +1077,6 @@
     window.updateMatch = (id, field, val) => {
         const m = state.matches[id];
         
-        // TIMELINE
         if (field === 'status' && m) {
             const trackableStates = ["1. Třetina", "2. Třetina", "3. Třetina", "Prodloužení", "Nájezdy", "Konec"];
             if (trackableStates.includes(val)) {
@@ -1544,6 +1549,12 @@
         document.getElementById("myBalance").innerText = myData.balance !== undefined ? myData.balance : 2500;
         document.getElementById("displayName").innerText = myData.name || "Hráč";
         
+        // Zobrazení tlačítka Admin pro tebe
+        const adminBtn = document.querySelector('button[onclick="window.adminLogin()"]');
+        if (adminBtn) {
+            adminBtn.style.display = (state.pId === ADMIN_UID) ? "block" : "none";
+        }
+
         let histHtml = '<table class="hist-table">';
         const allHistory = Object.values(myData.history || {}).sort((a,b) => b.time - a.time);
         const displayedHistory = state.showFullHistory ? allHistory : allHistory.slice(0,3);
@@ -1592,7 +1603,6 @@
                 const isPinned = pinnedIds.includes(mId) || ((isLive || m.status === 'Konec') && !hiddenLiveIds.includes(mId));
                 const isDisabled = m.status !== "Plánováno" || m.closed === true || isLocked;
 
-                // DETEKCE GÓLU
                 let scoringTeam = null;
                 if (state.lastScores[mId] && state.lastScores[mId] !== m.score && m.status !== "Plánováno") {
                     const [oldH, oldA] = state.lastScores[mId].split(":").map(Number);
@@ -1662,7 +1672,6 @@
                         </div>`;
                 }
 
-                // TIMELINE TABULKA
                 let timelineRows = "";
                 if (m.timeline) {
                     m.timeline.forEach(t => {
@@ -1670,7 +1679,7 @@
                             timelineRows += `
                                 <tr>
                                     <td colspan="3" style="text-align:center; background: rgba(59, 130, 246, 0.1); color: #3b82f6; font-weight: bold; font-size: 11px; padding: 5px 8px;">
-                                        ${t.text.toUpperCase()}
+                                        --- ${t.text.toUpperCase()} ---
                                     </td>
                                 </tr>`;
                         } else {
