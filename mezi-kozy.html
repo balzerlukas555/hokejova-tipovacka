@@ -342,6 +342,7 @@
     let state = { deck: [], pot: 0, players: [], currentTurn: null };
     let isFirstRound = true;
     let someoneBetThisRound = false;
+    let startingPlayerOffset = 0;
 
     const $ = id => document.getElementById(id);
     const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -418,6 +419,7 @@
         
         $('startScreen').style.display = 'none';
         $('game').style.display = 'block';
+        startingPlayerOffset = 0;
         startRound();
     }
 
@@ -448,10 +450,11 @@
         state.deck = createDeck();
 
         for (let i = 0; i < state.players.length; i++) {
-            if (state.players[i].bal <= 0) continue;
-            state.currentTurn = i;
+            let actualPlayerIdx = (i + startingPlayerOffset) % state.players.length;
+            if (state.players[actualPlayerIdx].bal <= 0) continue;
+            state.currentTurn = actualPlayerIdx;
             updateUI();
-            await runTurn(i);
+            await runTurn(actualPlayerIdx);
             if (state.pot <= 0) break;
         }
 
@@ -468,6 +471,7 @@
         }
 
         state.currentTurn = null;
+        startingPlayerOffset = (startingPlayerOffset + 1) % state.players.length;
         updateUI();
         $('nextBtn').style.display = 'block';
     }
