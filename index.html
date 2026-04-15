@@ -626,7 +626,7 @@
         }
 
         /* SÁZENÍ */
-        #betSelectorOverlay, #playerHistoryOverlay { 
+        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); z-index: 10000; display: none; 
             align-items: center; justify-content: center; backdrop-filter: blur(5px);
@@ -765,6 +765,28 @@
             <h3 id="histPlayerName" style="color:#3b82f6; margin:0 0 10px 0;">Historie hráče</h3>
             <div id="playerHistoryTableWrap" style="max-height: 400px; overflow-y: auto;"></div>
             <button onclick="document.getElementById('playerHistoryOverlay').style.display='none'" class="btn-alt" style="width:100%; margin-top:15px;">Zavřít</button>
+        </div>
+    </div>
+
+    <div id="penaltyModalOverlay">
+        <div class="auth-box" style="max-width: 400px; width: 95%;">
+            <h3 style="color:#3b82f6; margin:0 0 15px 0;">Přidat trest</h3>
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left;">Tým:</label>
+            <select id="penTeam">
+                <option value="home" id="penHomeOpt">Domácí</option>
+                <option value="away" id="penAwayOpt">Hosté</option>
+            </select>
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Hráč:</label>
+            <input type="text" id="penPlayer" placeholder="Jméno hráče">
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Trest (např. Hákování):</label>
+            <input type="text" id="penType" placeholder="Důvod trestu">
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Délka (min):</label>
+            <input type="text" id="penDuration" placeholder="Např. 2 minuty">
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="window.confirmPenalty()" class="btn-success" style="flex:2;">Uložit trest</button>
+                <button onclick="document.getElementById('penaltyModalOverlay').style.display='none'" class="btn-alt" style="flex:1;">Zavřít</button>
+            </div>
         </div>
     </div>
 
@@ -912,7 +934,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
+    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, currentAdminMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
 
     const ADMIN_UID = "ic18MLTfKyfu9uRt1Q2A8jxrbw73";
 
@@ -1118,6 +1140,43 @@
             timeline: initialTimeline
         });
         window.sendPushNotification('🏒 Zápas začal!', `${m.home} vs ${m.away}`);
+    };
+
+    // FUNKCE PRO TRESTY (ADMIN)
+    window.openPenaltyModal = (id) => {
+        const m = state.matches[id];
+        state.currentAdminMatchId = id;
+        document.getElementById('penHomeOpt').innerText = m.home;
+        document.getElementById('penAwayOpt').innerText = m.away;
+        document.getElementById('penPlayer').value = "";
+        document.getElementById('penType').value = "";
+        document.getElementById('penDuration').value = "";
+        document.getElementById('penaltyModalOverlay').style.display = 'flex';
+    };
+
+    window.confirmPenalty = () => {
+        const id = state.currentAdminMatchId;
+        const m = state.matches[id];
+        const teamKey = document.getElementById('penTeam').value;
+        const player = document.getElementById('penPlayer').value || "Neznámý hráč";
+        const type = document.getElementById('penType').value || "Trest";
+        const duration = document.getElementById('penDuration').value || "2 min";
+
+        const timeline = m.timeline || [];
+        timeline.push({
+            type: "penalty",
+            team: teamKey,
+            player: player,
+            penaltyType: type,
+            duration: duration,
+            time: Date.now()
+        });
+
+        update(ref(db, `matches/${id}`), { timeline: timeline });
+        document.getElementById('penaltyModalOverlay').style.display = 'none';
+        
+        const teamName = teamKey === "home" ? m.home : m.away;
+        window.sendPushNotification(`⚠️ Trest (${teamName})`, `${player} - ${type} (${duration})`);
     };
 
     window.changeScore = (id, teamIdx, delta) => {
@@ -1522,6 +1581,9 @@
                     <option value="Konec" ${m.status==='Konec'?'selected':''}>Konec</option>
                     <option value="Dohráno" ${m.status==='Dohráno'?'selected':''}>Dohráno</option>
                 </select>
+                <div style="margin-top: 10px;">
+                    <button class="btn-alt" style="width:100%; border: 1px solid #3b82f6; color:#3b82f6" onclick="window.openPenaltyModal('${id}')">+ Přidat trest</button>
+                </div>
                 <div class="score-control">
                     <div style="text-align:center">
                         <button class="btn-alt btn-score" onclick="window.changeScore('${id}', 0, -1)">-</button>
@@ -1683,13 +1745,26 @@
                                         --- ${t.text.toUpperCase()} ---
                                     </td>
                                 </tr>`;
-                        } else {
+                        } else if (t.type === "goal") {
                             const tLogo = t.team === "home" ? m.homeLogo : m.awayLogo;
                             timelineRows += `
                                 <tr>
                                     <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
                                     <td style="text-align:left"><b>${t.scorer}</b></td>
                                     <td style="text-align:right; color:#3b82f6; font-weight:bold">(${t.score})</td>
+                                </tr>`;
+                        } else if (t.type === "penalty") {
+                            const tLogo = t.team === "home" ? m.homeLogo : m.awayLogo;
+                            timelineRows += `
+                                <tr style="background: rgba(239, 68, 68, 0.05);">
+                                    <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
+                                    <td style="text-align:left">
+                                        <div style="font-weight:bold; font-size:12px;">${t.player}</div>
+                                        <div style="font-size:10px; color:#94a3b8;">${t.penaltyType}</div>
+                                    </td>
+                                    <td style="text-align:right; color:#ef4444; font-weight:bold; font-size:11px;">
+                                        ⏱️ ${t.duration}
+                                    </td>
                                 </tr>`;
                         }
                     });
@@ -1712,7 +1787,7 @@
                         ${m.status !== "Plánováno" ? `
                             <button class="btn-alt" style="width:100%; margin-top:5px; font-size:11px; padding:5px" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'table' ? 'none' : 'table'">Průběh zápasu</button>
                             <table class="match-timeline-table">
-                                ${timelineRows || '<tr><td colspan="3" style="color:#94a3b8; padding:10px">Zatím žádné góly</td></tr>'}
+                                ${timelineRows || '<tr><td colspan="3" style="color:#94a3b8; padding:10px">Zatím žádné události</td></tr>'}
                             </table>
                         ` : ''}
                     </div>`;
