@@ -776,6 +776,8 @@
                 <option value="home" id="penHomeOpt">Domácí</option>
                 <option value="away" id="penAwayOpt">Hosté</option>
             </select>
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Minuta zápasu:</label>
+            <input type="text" id="penMinute" placeholder="Např. 12'">
             <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Hráč:</label>
             <input type="text" id="penPlayer" placeholder="Jméno hráče">
             <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Trest (např. Hákování):</label>
@@ -1177,6 +1179,7 @@
         state.currentAdminMatchId = id;
         document.getElementById('penHomeOpt').innerText = m.home;
         document.getElementById('penAwayOpt').innerText = m.away;
+        document.getElementById('penMinute').value = "";
         document.getElementById('penPlayer').value = "";
         document.getElementById('penType').value = "";
         document.getElementById('penDuration').value = "";
@@ -1187,6 +1190,7 @@
         const id = state.currentAdminMatchId;
         const m = state.matches[id];
         const teamKey = document.getElementById('penTeam').value;
+        const minute = document.getElementById('penMinute').value || "";
         const player = document.getElementById('penPlayer').value || "Neznámý hráč";
         const type = document.getElementById('penType').value || "Trest";
         const duration = document.getElementById('penDuration').value || "2 min";
@@ -1195,6 +1199,7 @@
         timeline.push({
             type: "penalty",
             team: teamKey,
+            minute: minute,
             player: player,
             penaltyType: type,
             duration: duration,
@@ -1260,6 +1265,8 @@
             scorer = prompt("Zadej jméno střelce gólu:");
             if (!scorer) scorer = "S. Neuveden";
             
+            const minute = prompt("Zadej minutu gólu (např. 24'):");
+            
             const timeline = m.timeline || [];
             parts[teamIdx] = Math.max(0, parts[teamIdx] + delta);
             const newScore = parts.join(":");
@@ -1268,6 +1275,7 @@
                 type: "goal",
                 team: teamIdx === 0 ? "home" : "away",
                 scorer: scorer,
+                minute: minute || "",
                 score: newScore,
                 time: Date.now()
             });
@@ -1825,7 +1833,10 @@
                             timelineRows += `
                                 <tr>
                                     <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
-                                    <td style="text-align:left"><b>${t.scorer}</b></td>
+                                    <td style="text-align:left">
+                                        <b>${t.scorer}</b>
+                                        <div style="font-size:10px; color:#94a3b8;">${t.minute}</div>
+                                    </td>
                                     <td style="text-align:right; color:#3b82f6; font-weight:bold">(${t.score})</td>
                                 </tr>`;
                         } else if (t.type === "penalty") {
@@ -1834,7 +1845,7 @@
                                 <tr style="background: rgba(239, 68, 68, 0.05);">
                                     <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
                                     <td style="text-align:left">
-                                        <div style="font-weight:bold; font-size:12px;">${t.player}</div>
+                                        <div style="font-weight:bold; font-size:12px;">${t.player} (${t.minute})</div>
                                         <div style="font-size:10px; color:#94a3b8;">${t.penaltyType}</div>
                                     </td>
                                     <td style="text-align:right; color:#ef4444; font-weight:bold; font-size:11px;">
