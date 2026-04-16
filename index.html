@@ -626,7 +626,7 @@
         }
 
         /* SÁZENÍ */
-        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay { 
+        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay, #shootoutModalOverlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); z-index: 10000; display: none; 
             align-items: center; justify-content: center; backdrop-filter: blur(5px);
@@ -786,6 +786,29 @@
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button onclick="window.confirmPenalty()" class="btn-success" style="flex:2;">Uložit trest</button>
                 <button onclick="document.getElementById('penaltyModalOverlay').style.display='none'" class="btn-alt" style="flex:1;">Zavřít</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shootoutModalOverlay">
+        <div class="auth-box" style="max-width: 400px; width: 95%;">
+            <h3 style="color:#3b82f6; margin:0 0 15px 0;">Přidat nájezd</h3>
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left;">Tým:</label>
+            <select id="shoTeam">
+                <option value="home" id="shoHomeOpt">Domácí</option>
+                <option value="away" id="shoAwayOpt">Hosté</option>
+            </select>
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Stav:</label>
+            <select id="shoConverted">
+                <option value="ano">Proměnil ✅</option>
+                <option value="ne">Neproměnil ❌</option>
+            </select>
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Hráč:</label>
+            <input type="text" id="shoPlayer" placeholder="Jméno hráče">
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="window.confirmShootout()" class="btn-success" style="flex:2;">Uložit nájezd</button>
+                <button onclick="document.getElementById('shootoutModalOverlay').style.display='none'" class="btn-alt" style="flex:1;">Zavřít</button>
             </div>
         </div>
     </div>
@@ -1102,6 +1125,12 @@
         
         if (field === 'status' && m) {
             const trackableStates = ["1. Třetina", "2. Třetina", "3. Třetina", "Prodloužení", "Nájezdy", "Konec"];
+            
+            // SPECIÁLNÍ LOGIKA PRO PRODLOUŽENÍ: Uložení skóre základní hrací doby
+            if (val === "Prodloužení" && !m.scoreFullTime) {
+                update(ref(db, `matches/${id}`), { scoreFullTime: m.score });
+            }
+
             if (trackableStates.includes(val)) {
                 const timeline = m.timeline || [];
                 timeline.push({
@@ -1177,6 +1206,49 @@
         
         const teamName = teamKey === "home" ? m.home : m.away;
         window.sendPushNotification(`⚠️ Trest (${teamName})`, `${player} - ${type} (${duration})`);
+    };
+
+    // FUNKCE PRO NÁJEZDY (ADMIN)
+    window.openShootoutModal = (id) => {
+        const m = state.matches[id];
+        state.currentAdminMatchId = id;
+        document.getElementById('shoHomeOpt').innerText = m.home;
+        document.getElementById('shoAwayOpt').innerText = m.away;
+        document.getElementById('shoPlayer').value = "";
+        document.getElementById('shootoutModalOverlay').style.display = 'flex';
+    };
+
+    window.confirmShootout = () => {
+        const id = state.currentAdminMatchId;
+        const m = state.matches[id];
+        const teamKey = document.getElementById('shoTeam').value;
+        const converted = document.getElementById('shoConverted').value;
+        const player = document.getElementById('shoPlayer').value || "Neznámý hráč";
+
+        const timeline = m.timeline || [];
+        const shootoutScore = m.shootoutScore || "0:0";
+        let [sH, sA] = shootoutScore.split(":").map(Number);
+
+        if (converted === "ano") {
+            if (teamKey === "home") sH++; else sA++;
+        }
+
+        const newShootoutScore = `${sH}:${sA}`;
+
+        timeline.push({
+            type: "shootout",
+            team: teamKey,
+            player: player,
+            converted: converted === "ano",
+            time: Date.now()
+        });
+
+        update(ref(db, `matches/${id}`), { 
+            timeline: timeline,
+            shootoutScore: newShootoutScore
+        });
+        
+        document.getElementById('shootoutModalOverlay').style.display = 'none';
     };
 
     window.changeScore = (id, teamIdx, delta) => {
@@ -1300,7 +1372,9 @@
             closed: true 
         });
 
-        const [hS, aS] = m.score.split(":").map(Number);
+        // POUŽITÍ SKÓRE ZÁKLADNÍ HRACÍ DOBY PRO VYHODNOCENÍ
+        const evalScore = m.scoreFullTime || m.score;
+        const [hS, aS] = evalScore.split(":").map(Number);
         const actualRes = hS > aS ? "1" : (aS > hS ? "2" : "0");
         const totalG = hS + aS;
 
@@ -1323,7 +1397,7 @@
                     else if(bet.tip === "12" && (actualRes==="1"||actualRes==="2")) { finalMult = 1.4; winType = "win"; }
                 } 
                 else if(type === "score") {
-                    if(bet.tip === m.score) { finalMult = 4; winType = "gold"; }
+                    if(bet.tip === evalScore) { finalMult = 4; winType = "gold"; }
                 } 
                 else if(type === "goals") {
                     if(bet.tip === "V 2.5" && totalG > 2.5) { finalMult = 1.3; winType = "win"; }
@@ -1339,7 +1413,7 @@
                 const hId = `h${mId}_${type}`;
                 set(ref(db, `tips/${pId}/history/${hId}`), {
                     match: `${m.home.slice(0,3)}-${m.away.slice(0,3)} (${type})`,
-                    tip: bet.tip, score: type === "goals" ? totalG : m.score,
+                    tip: bet.tip, score: type === "goals" ? totalG : evalScore,
                     gain: gain, type: winType, mult: finalMult > 0 ? finalMult : null, time: Date.now()
                 });
 
@@ -1581,8 +1655,9 @@
                     <option value="Konec" ${m.status==='Konec'?'selected':''}>Konec</option>
                     <option value="Dohráno" ${m.status==='Dohráno'?'selected':''}>Dohráno</option>
                 </select>
-                <div style="margin-top: 10px;">
-                    <button class="btn-alt" style="width:100%; border: 1px solid #3b82f6; color:#3b82f6" onclick="window.openPenaltyModal('${id}')">+ Přidat trest</button>
+                <div style="margin-top: 10px; display:flex; gap:5px;">
+                    <button class="btn-alt" style="flex:1; border: 1px solid #3b82f6; color:#3b82f6" onclick="window.openPenaltyModal('${id}')">+ Přidat trest</button>
+                    ${m.status === "Nájezdy" ? `<button class="btn-alt" style="flex:1; border: 1px solid #6ee7b7; color:#6ee7b7" onclick="window.openShootoutModal('${id}')">+ Přidat nájezd</button>` : ""}
                 </div>
                 <div class="score-control">
                     <div style="text-align:center">
@@ -1766,8 +1841,35 @@
                                         ⏱️ ${t.duration}
                                     </td>
                                 </tr>`;
+                        } else if (t.type === "shootout") {
+                            const tLogo = t.team === "home" ? m.homeLogo : m.awayLogo;
+                            timelineRows += `
+                                <tr>
+                                    <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
+                                    <td style="text-align:left"><b>${t.player}</b></td>
+                                    <td style="text-align:right">${t.converted ? '✅' : '❌'}</td>
+                                </tr>`;
                         }
                     });
+                }
+
+                // SPECIÁLNÍ TEXTY PRO PRODLOUŽENÍ / NÁJEZDY
+                let subScoreHtml = "";
+                if (m.scoreFullTime) {
+                    subScoreHtml = `<div style="font-size:11px; color:#94a3b8; margin-top:-5px; margin-bottom:5px;">(v zákl. hrací době ${m.scoreFullTime})</div>`;
+                }
+                
+                let shootoutIndicator = "";
+                if (m.shootoutScore && m.status === "Nájezdy") {
+                    shootoutIndicator = `<div style="font-size:13px; color:#6ee7b7; font-weight:bold;">Nájezdy: ${m.shootoutScore}</div>`;
+                }
+
+                // PŘÍPONA SKÓRE (p / n)
+                let finalBadgeColor = "#059669";
+                let displayScore = m.score;
+                if (isF) {
+                    if (m.shootoutScore) displayScore += "n";
+                    else if (m.scoreFullTime) displayScore += "p";
                 }
 
                 gHtml += `<div class="match ${isPinned ? 'pinned' : ''}">
@@ -1778,9 +1880,12 @@
 
                         <div class="teams" style="${currentOverlay !== "" ? 'opacity:0' : 'opacity:1'}">
                             ${hLogoHtml} ${m.home} 
-                            ${m.status !== 'Plánováno' && !isF ? `<span class="live-score">${m.score}</span>` : (isF ? `<span class="live-score" style="background:#059669">${m.score}</span>` : 'vs')} 
+                            ${m.status !== 'Plánováno' && !isF ? `<span class="live-score">${m.score}</span>` : (isF ? `<span class="live-score" style="background:${finalBadgeColor}">${displayScore}</span>` : 'vs')} 
                             ${m.away} ${aLogoHtml}
                         </div>
+                        
+                        ${subScoreHtml}
+                        ${shootoutIndicator}
                         
                         <button onclick="window.placeBet('${mId}')" ${isDisabled ? 'disabled' : ''} style="width:100%">${isDisabled ? (isLocked ? 'Zamčeno' : 'Zavřeno') : btnTxt}</button>
                         
