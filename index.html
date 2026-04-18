@@ -154,6 +154,23 @@
             margin-top: 15px; 
             font-size: 11px; 
         }
+        .hist-match-group {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 8px;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+        .hist-match-title {
+            font-weight: bold;
+            color: #3b82f6;
+            font-size: 12px;
+            margin-bottom: 5px;
+            padding-left: 5px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 3px;
+        }
         .hist-row-gold { 
             background: linear-gradient(90deg, #d97706, #b45309); 
             color: white; 
@@ -1342,6 +1359,59 @@
         }
     };
 
+    // POMOCNÁ FUNKCE PRO SESKUPOVÁNÍ HISTORIE
+    function groupHistoryByMatch(histObj) {
+        const grouped = {};
+        const histArr = Object.values(histObj || {}).sort((a,b) => b.time - a.time);
+        
+        histArr.forEach(h => {
+            const matchName = h.match.split(" (")[0]; // Odstraní (result), (score) atd.
+            if (!grouped[matchName]) {
+                grouped[matchName] = {
+                    name: matchName,
+                    time: h.time, // Pro řazení skupin
+                    items: []
+                };
+            }
+            grouped[matchName].items.push(h);
+        });
+        
+        return Object.values(grouped).sort((a, b) => b.time - a.time);
+    }
+
+    // POMOCNÁ FUNKCE PRO GENEROVÁNÍ HTML HISTORIE
+    function generateHistoryHtml(groupedHist, limit = null) {
+        if (groupedHist.length === 0) {
+            return '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">Žádná historie</td></tr>';
+        }
+
+        let html = "";
+        let count = 0;
+        
+        for (const group of groupedHist) {
+            if (limit && count >= limit) break;
+            
+            html += `<div class="hist-match-group">
+                        <div class="hist-match-title">${group.name}</div>
+                        <table class="hist-table" style="margin-top:0;">`;
+            
+            group.items.forEach(h => {
+                const typeLabel = h.match.includes('(result)') ? 'Výsledek' : (h.match.includes('(score)') ? 'Skóre' : 'Góly');
+                const rowClass = h.type === "gold" ? "hist-row-gold" : (h.type === "win" ? "hist-row-win" : "hist-row-loss");
+                html += `<tr class="${rowClass}">
+                    <td style="font-size:9px;">${typeLabel}</td>
+                    <td>T:${h.tip}</td>
+                    <td>V:${h.score}</td>
+                    <td>${h.gain > 0 ? '+' : ''}${h.gain} TC</td>
+                </tr>`;
+            });
+            
+            html += `</table></div>`;
+            count++;
+        }
+        return html;
+    }
+
     window.showPlayerHistory = (pid) => {
         const p = state.players[pid];
         if(!p) return;
@@ -1349,23 +1419,8 @@
         document.getElementById('histPlayerName').innerText = `Historie: ${p.name || 'Borec'}`;
         const wrap = document.getElementById('playerHistoryTableWrap');
         
-        let html = '<table class="hist-table">';
-        const histArr = Object.values(p.history || {}).sort((a,b) => b.time - a.time);
-        
-        if(histArr.length === 0) {
-            html += '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">Žádná historie</td></tr>';
-        } else {
-            histArr.forEach(h => {
-                const rowClass = h.type === "gold" ? "hist-row-gold" : (h.type === "win" ? "hist-row-win" : "hist-row-loss");
-                html += `<tr class="${rowClass}">
-                    <td>${h.match.replace('(result)', '(výsledek)').replace('(score)', '(skóre)').replace('(goals)', '(góly)')}</td>
-                    <td>T:${h.tip}</td>
-                    <td>V:${h.score}</td>
-                    <td>${h.gain > 0 ? '+' : ''}${h.gain} TC</td>
-                </tr>`;
-            });
-        }
-        wrap.innerHTML = html + '</table>';
+        const grouped = groupHistoryByMatch(p.history);
+        wrap.innerHTML = generateHistoryHtml(grouped);
         document.getElementById('playerHistoryOverlay').style.display = 'flex';
     };
 
@@ -1701,15 +1756,10 @@
             adminBtn.style.display = (state.pId === ADMIN_UID) ? "block" : "none";
         }
 
-        let histHtml = '<table class="hist-table">';
-        const allHistory = Object.values(myData.history || {}).sort((a,b) => b.time - a.time);
-        const displayedHistory = state.showFullHistory ? allHistory : allHistory.slice(0,3);
-        displayedHistory.forEach(h => {
-            const rowClass = h.type === "gold" ? "hist-row-gold" : (h.type === "win" ? "hist-row-win" : "hist-row-loss");
-            histHtml += `<tr class="${rowClass}"><td>${h.match.replace('(result)', '(výsledek)').replace('(score)', '(skóre)').replace('(goals)', '(góly)')}</td><td>T:${h.tip}</td><td>V:${h.score}</td><td>${h.gain > 0 ? '+' : ''}${h.gain} TC</td></tr>`;
-        });
-        document.getElementById("myHistory").innerHTML = histHtml + '</table>';
-        document.getElementById("histToggle").style.display = allHistory.length > 3 ? "inline-block" : "none";
+        const grouped = groupHistoryByMatch(myData.history);
+        const limit = state.showFullHistory ? null : 3;
+        document.getElementById("myHistory").innerHTML = generateHistoryHtml(grouped, limit);
+        document.getElementById("histToggle").style.display = grouped.length > 3 ? "inline-block" : "none";
 
         const container = document.getElementById("matchesContainer"); container.innerHTML = "";
         const sortedGroups = Object.keys(state.groups).sort((a,b) => state.groups[a].order - state.groups[b].order);
