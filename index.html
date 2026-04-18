@@ -261,7 +261,7 @@
             border: 1px solid #334155; 
             position: relative; 
             display: block;
-            overflow: hidden; /* Důležité pro animaci gólů */
+            overflow: hidden;
         }
 
         .match.pinned { 
@@ -1139,13 +1139,20 @@
         });
     };
 
+    window.duplicateMatch = (id) => {
+        const m = state.matches[id];
+        if (!m) return;
+        const newId = `m${Date.now()}`;
+        set(ref(db, `matches/${newId}`), { ...m, closed: false });
+    };
+
     window.updateMatch = (id, field, val) => {
         const m = state.matches[id];
         
         if (field === 'status' && m) {
             const trackableStates = ["1. Třetina", "2. Třetina", "3. Třetina", "Prodloužení", "Nájezdy", "Konec"];
             
-            // SPECIÁLNÍ LOGIKA PRO PRODLOUŽENÍ: Uložení skóre základní hrací doby
+            // PRODLOUZENI
             if (val === "Prodloužení" && !m.scoreFullTime) {
                 update(ref(db, `matches/${id}`), { scoreFullTime: m.score });
             }
@@ -1190,7 +1197,7 @@
         window.sendPushNotification('🏒 Zápas začal!', `${m.home} vs ${m.away}`);
     };
 
-    // FUNKCE PRO TRESTY (ADMIN)
+    // TRESTY
     window.openPenaltyModal = (id) => {
         const m = state.matches[id];
         state.currentAdminMatchId = id;
@@ -1230,7 +1237,7 @@
         window.sendPushNotification(`⚠️ Trest (${teamName})`, `${player} - ${type} (${duration})`);
     };
 
-    // FUNKCE PRO NÁJEZDY (ADMIN)
+    // NÁJEZDY
     window.openShootoutModal = (id) => {
         const m = state.matches[id];
         state.currentAdminMatchId = id;
@@ -1359,7 +1366,7 @@
         }
     };
 
-    // POMOCNÁ FUNKCE PRO SESKUPOVÁNÍ HISTORIE
+    // HISTORIE
     function groupHistoryByMatch(histObj) {
         const grouped = {};
         const histArr = Object.values(histObj || {}).sort((a,b) => b.time - a.time);
@@ -1379,7 +1386,7 @@
         return Object.values(grouped).sort((a, b) => b.time - a.time);
     }
 
-    // POMOCNÁ FUNKCE PRO GENEROVÁNÍ HTML HISTORIE
+    // GENEROVANI HISTORIE
     function generateHistoryHtml(groupedHist, limit = null) {
         if (groupedHist.length === 0) {
             return '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">Žádná historie</td></tr>';
@@ -1435,7 +1442,7 @@
             closed: true 
         });
 
-        // POUŽITÍ SKÓRE ZÁKLADNÍ HRACÍ DOBY PRO VYHODNOCENÍ
+        // VYHODNOCENI
         const evalScore = m.scoreFullTime || m.score;
         const [hS, aS] = evalScore.split(":").map(Number);
         const actualRes = hS > aS ? "1" : (aS > hS ? "2" : "0");
@@ -1651,7 +1658,7 @@
 
         if (liveMatchIds.length > 0) {
             const sortedLive = sortMatchesByDate(liveMatchIds);
-            let liveHtml = `<div style="margin-top:20px; border-bottom:1px solid #ef4444; padding-bottom:5px; margin-bottom:10px; color:#ef4444; font-weight:bold; font-size:14px;">🔴 LIVE ZÁPASY (PŘEHLED)</div>`;
+            let liveHtml = `<div style="margin-top:20px; border-bottom:1px solid #ef4444; padding-bottom:5px; margin-bottom:10px; color:#ef4444; font-weight:bold; font-size:14px;">LIVE ZÁPASY</div>`;
             sortedLive.forEach(id => {
                 liveHtml += renderMatchAdminBox(id);
             });
@@ -1739,6 +1746,7 @@
             <div style="margin-top:8px; display:flex; gap:5px;">
                 <button class="${m.status==='Konec'?'btn-gold':'btn-disabled'}" onclick="window.evaluateMatch('${id}')">VYHODNOTIT</button>
                 <button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít':'Zavřít'}</button>
+                <button class="btn-alt" onclick="window.duplicateMatch('${id}')">Duplikovat</button>
                 <button class="btn-danger" onclick="window.deleteMatch('${id}')">X</button>
             </div>
         </div>`;
@@ -1750,7 +1758,7 @@
         document.getElementById("myBalance").innerText = myData.balance !== undefined ? myData.balance : 2500;
         document.getElementById("displayName").innerText = myData.name || "Hráč";
         
-        // Zobrazení tlačítka Admin pro tebe
+        // ADMIN BUTTON
         const adminBtn = document.querySelector('button[onclick="window.adminLogin()"]');
         if (adminBtn) {
             adminBtn.style.display = (state.pId === ADMIN_UID) ? "block" : "none";
@@ -1828,7 +1836,8 @@
 
                 let currentOverlay = "";
                 const now = Date.now();
-                
+
+                // ADMIN PANEL
                 if (m.startAnim && (now - m.startAnim < 6000)) {
                     currentOverlay = `
                         <div class="start-overlay">
@@ -1988,4 +1997,4 @@
     }
 </script>
 </body>
-</html>
+</htmlx>
