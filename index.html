@@ -949,8 +949,19 @@
             <div class="bet-market-section">
                 <div class="bet-market-title">Vsadit na střelce (3x)</div>
                 <p style="font-size:10px; color:#94a3b8; margin: -5px 0 5px 0;">Formát: David Pastrňák -> D. Pastrňák</p>
-                <input type="text" id="betScorerName" placeholder="Jméno střelce (např. D. Pastrňák)">
-                <div class="stake-input-wrap"><input type="number" id="stakeScorer" placeholder="Vklad (TC)"></div>
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; margin-bottom: 5px;">
+                    <input type="text" id="betScorerName" placeholder="1. Střelec (např. D. Pastrňák)">
+                    <div class="stake-input-wrap"><input type="number" id="stakeScorer" placeholder="Vklad (TC)"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; margin-bottom: 5px;">
+                    <input type="text" id="betScorerName2" placeholder="2. Střelec (např. D. Kubalík)">
+                    <div class="stake-input-wrap"><input type="number" id="stakeScorer2" placeholder="Vklad (TC)"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px;">
+                    <input type="text" id="betScorerName3" placeholder="3. Střelec (např. J. Lauko)">
+                    <div class="stake-input-wrap"><input type="number" id="stakeScorer3" placeholder="Vklad (TC)"></div>
+                </div>
             </div>
 
             <div style="display:flex; gap:10px; margin-top:20px;">
@@ -1665,7 +1676,7 @@
             const fullBet = p?.bets?.[mId];
             if(!fullBet) return;
             
-            ["result", "score", "goals", "scorer"].forEach(type => {
+            ["result", "score", "goals", "scorer", "scorer2", "scorer3"].forEach(type => {
                 const bet = fullBet[type];
                 if(!bet) return;
 
@@ -1689,7 +1700,7 @@
                     else if(bet.tip === "M 4.5" && totalG < 4.5) { finalMult = 1.6; winType = "win"; }
                     else if(bet.tip === "M 6.5" && totalG < 6.5) { finalMult = 1.3; winType = "win"; }
                 }
-                else if(type === "scorer") {
+                else if(type === "scorer" || type === "scorer2" || type === "scorer3") {
                     if(scorersInTimeline.includes(bet.tip)) { finalMult = 3; winType = "win"; }
                 }
 
@@ -1739,8 +1750,13 @@
         document.getElementById('betScoreVal').value = exB.score?.tip || "";
         document.getElementById('stakeScore').value = exB.score?.stake || "";
         document.getElementById('stakeGoals').value = exB.goals?.stake || "";
+        
         document.getElementById('betScorerName').value = exB.scorer?.tip || "";
         document.getElementById('stakeScorer').value = exB.scorer?.stake || "";
+        document.getElementById('betScorerName2').value = exB.scorer2?.tip || "";
+        document.getElementById('stakeScorer2').value = exB.scorer2?.stake || "";
+        document.getElementById('betScorerName3').value = exB.scorer3?.tip || "";
+        document.getElementById('stakeScorer3').value = exB.scorer3?.stake || "";
 
         document.getElementById('betSelectorOverlay').style.display = 'flex';
     };
@@ -1757,6 +1773,8 @@
             if(oldFullBet.score) curB += oldFullBet.score.stake;
             if(oldFullBet.goals) curB += oldFullBet.goals.stake;
             if(oldFullBet.scorer) curB += oldFullBet.scorer.stake;
+            if(oldFullBet.scorer2) curB += oldFullBet.scorer2.stake;
+            if(oldFullBet.scorer3) curB += oldFullBet.scorer3.stake;
         }
 
         const newBets = {};
@@ -1778,11 +1796,27 @@
             newBets.goals = { tip: state.tempBets.goals, stake: sGoa };
             totalNewStake += sGoa;
         }
+        
+        // 1. Střelec
         const vScor = document.getElementById('betScorerName').value;
         const sScor = parseInt(document.getElementById('stakeScorer').value);
         if(vScor.length > 2 && sScor > 0) {
             newBets.scorer = { tip: vScor, stake: sScor };
             totalNewStake += sScor;
+        }
+        // 2. Střelec
+        const vScor2 = document.getElementById('betScorerName2').value;
+        const sScor2 = parseInt(document.getElementById('stakeScorer2').value);
+        if(vScor2.length > 2 && sScor2 > 0) {
+            newBets.scorer2 = { tip: vScor2, stake: sScor2 };
+            totalNewStake += sScor2;
+        }
+        // 3. Střelec
+        const vScor3 = document.getElementById('betScorerName3').value;
+        const sScor3 = parseInt(document.getElementById('stakeScorer3').value);
+        if(vScor3.length > 2 && sScor3 > 0) {
+            newBets.scorer3 = { tip: vScor3, stake: sScor3 };
+            totalNewStake += sScor3;
         }
 
         if(totalNewStake === 0) return alert("Zadej aspoň jednu platnou sázku s vkladem!");
@@ -1849,7 +1883,9 @@
                     if(b.result) txt += `V: ${b.result.tip} (${b.result.stake} TC)<br>`;
                     if(b.score) txt += `S: ${b.score.tip} (${b.score.stake} TC)<br>`;
                     if(b.goals) txt += `G: ${b.goals.tip} (${b.goals.stake} TC)<br>`;
-                    if(b.scorer) txt += `ST: ${b.scorer.tip} (${b.scorer.stake} TC)`;
+                    if(b.scorer) txt += `ST1: ${b.scorer.tip} (${b.scorer.stake} TC)<br>`;
+                    if(b.scorer2) txt += `ST2: ${b.scorer2.tip} (${b.scorer2.stake} TC)<br>`;
+                    if(b.scorer3) txt += `ST3: ${b.scorer3.tip} (${b.scorer3.stake} TC)`;
                 }
                 bHtml += `<td class="${isLive ? 'live-cell' : ''}" data-label="${m.home} - ${m.away}">${txt}</td>`;
             });
@@ -2058,7 +2094,7 @@
 
                 let btnTxt = "Vsadit";
                 if(myB) {
-                    let c = 0; if(myB.result) c++; if(myB.score) c++; if(myB.goals) c++; if(myB.scorer) c++;
+                    let c = 0; if(myB.result) c++; if(myB.score) c++; if(myB.goals) c++; if(myB.scorer) c++; if(myB.scorer2) c++; if(myB.scorer3) c++;
                     btnTxt = `Vsazeno (${c}x)`;
                 }
 
@@ -2211,7 +2247,12 @@
                     if(m && m.status !== "Dohráno") {
                         const b = p.bets[mid];
                         let bParts = [];
-                        if(b.result) bParts.push(b.result.tip); if(b.score) bParts.push(b.score.tip); if(b.goals) bParts.push(b.goals.tip); if(b.scorer) bParts.push(b.scorer.tip);
+                        if(b.result) bParts.push(b.result.tip); 
+                        if(b.score) bParts.push(b.score.tip); 
+                        if(b.goals) bParts.push(b.goals.tip); 
+                        if(b.scorer) bParts.push(b.scorer.tip);
+                        if(b.scorer2) bParts.push(b.scorer2.tip);
+                        if(b.scorer3) bParts.push(b.scorer3.tip);
                         bH += `<span class="bet-info">${m.home.slice(0,3)}-${m.away.slice(0,3)}: ${bParts.join(", ")}</span>`;
                     }
                 }); 
