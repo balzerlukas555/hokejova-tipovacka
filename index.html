@@ -1181,15 +1181,11 @@
 
     window.addGroup = () => {
         const n = document.getElementById("newGroupName").value;
-        if(n) set(ref(db, `groups/g${Date.now()}`), { name: n, order: Date.now(), locked: false, lineups_locked: false });
+        if(n) set(ref(db, `groups/g${Date.now()}`), { name: n, order: Date.now(), locked: false });
     };
 
     window.toggleGroupLock = (id, currentStatus) => {
         update(ref(db, `groups/${id}`), { locked: !currentStatus });
-    };
-
-    window.toggleLineupsLock = (id, currentStatus) => {
-        update(ref(db, `groups/${id}`), { lineups_locked: !currentStatus });
     };
 
     window.deleteGroup = (id) => {
@@ -1200,7 +1196,7 @@
         set(ref(db, `matches/m${Date.now()}`), { 
             home:"Tým A", away:"Tým B", date:"1.1. 18:00", 
             group:"none", status:"Plánováno", score:"0:0", closed:false,
-            homeLogo: "", awayLogo: "", description: ""
+            homeLogo: "", awayLogo: "", description: "", lineups_locked: false
         });
     };
 
@@ -1818,12 +1814,10 @@
         Object.keys(state.groups).forEach(id => {
             const g = state.groups[id];
             const lockEmoji = g.locked ? "🔒" : "🔓";
-            const lineupLockEmoji = g.lineups_locked ? "🔒 Sestavy" : "🔓 Sestavy";
             gList.innerHTML += `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#1e293b; padding:5px; border-radius:5px;">
                     <span>${g.name}</span>
                     <div style="display:flex; gap:5px;">
-                        <button class="btn-alt" style="padding:2px 8px;" onclick="window.toggleLineupsLock('${id}', ${g.lineups_locked})">${lineupLockEmoji}</button>
                         <button class="btn-alt" style="padding:2px 8px;" onclick="window.toggleGroupLock('${id}', ${g.locked})">${lockEmoji}</button>
                         <button class="btn-danger" style="padding:2px 8px" onclick="window.deleteGroup('${id}')">X</button>
                     </div>
@@ -1878,6 +1872,7 @@
         let gOpts = `<option value="none">Bez skupiny</option>`;
         Object.keys(state.groups).forEach(gid => { gOpts += `<option value="${gid}" ${m.group===gid?'selected':''}>${state.groups[gid].name}</option>`; });
         const [sH, sA] = m.score.split(":").map(Number);
+        const lineupLockEmoji = m.lineups_locked ? "🔒 Sestavy" : "🔓 Sestavy";
 
         return `<div style="background:#111827; padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid #334155;">
             <div style="display:flex; gap:5px; margin-bottom:5px;">
@@ -1894,6 +1889,7 @@
             <div style="display:flex; gap:5px; margin-bottom:5px;">
                 <button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #60a5fa;" onclick="window.openLineupModal('${id}', true, 'home')">Sestava domácí</button>
                 <button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #60a5fa;" onclick="window.openLineupModal('${id}', true, 'away')">Sestava hostů</button>
+                <button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #60a5fa;" onclick="window.updateMatch('${id}','lineups_locked', ${!m.lineups_locked})">${lineupLockEmoji}</button>
             </div>
             ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.startMatchWithAnimation('${id}')">ZAČÍT ZÁPAS</button>` : 
             `<div>
@@ -1965,9 +1961,8 @@
             if(gMatchesRaw.length === 0) return;
             
             const gMatches = sortMatchesByDate(gMatchesRaw);
-            const groupData = state.groups[gId] || { locked: false, lineups_locked: false };
+            const groupData = state.groups[gId] || { locked: false };
             const isLocked = groupData.locked;
-            const areLineupsLocked = groupData.lineups_locked;
             const allFinished = gMatches.every(mId => state.matches[mId].status === 'Dohráno');
             
             const barColor = isLocked ? "#ef4444" : "#3b82f6";
@@ -1992,6 +1987,7 @@
                 
                 const isPinned = pinnedIds.includes(mId) || ((isLive || m.status === 'Konec') && !hiddenLiveIds.includes(mId));
                 const isDisabled = m.status !== "Plánováno" || m.closed === true || isLocked;
+                const isLineupLocked = m.lineups_locked === true;
 
                 let scoringTeam = null;
                 if (state.lastScores[mId] && state.lastScores[mId] !== m.score && m.status !== "Plánováno") {
@@ -2141,7 +2137,7 @@
                         
                         <div style="display:flex; gap:5px; margin-bottom:5px;">
                             <button onclick="window.placeBet('${mId}')" ${isDisabled ? 'disabled' : ''} style="flex:3">${isDisabled ? (isLocked ? 'Zamčeno' : 'Zavřeno') : btnTxt}</button>
-                            ${!areLineupsLocked ? `<button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #3b82f6" onclick="window.openLineupModal('${mId}', false)">Sestavy</button>` : ''}
+                            ${!isLineupLocked ? `<button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #3b82f6" onclick="window.openLineupModal('${mId}', false)">Sestavy</button>` : ''}
                         </div>
                         
                         ${m.status !== "Plánováno" ? `
