@@ -1181,11 +1181,15 @@
 
     window.addGroup = () => {
         const n = document.getElementById("newGroupName").value;
-        if(n) set(ref(db, `groups/g${Date.now()}`), { name: n, order: Date.now(), locked: false });
+        if(n) set(ref(db, `groups/g${Date.now()}`), { name: n, order: Date.now(), locked: false, lineups_locked: false });
     };
 
     window.toggleGroupLock = (id, currentStatus) => {
         update(ref(db, `groups/${id}`), { locked: !currentStatus });
+    };
+
+    window.toggleLineupsLock = (id, currentStatus) => {
+        update(ref(db, `groups/${id}`), { lineups_locked: !currentStatus });
     };
 
     window.deleteGroup = (id) => {
@@ -1814,11 +1818,13 @@
         Object.keys(state.groups).forEach(id => {
             const g = state.groups[id];
             const lockEmoji = g.locked ? "🔒" : "🔓";
+            const lineupLockEmoji = g.lineups_locked ? "🔒 Sestavy" : "🔓 Sestavy";
             gList.innerHTML += `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:#1e293b; padding:5px; border-radius:5px;">
                     <span>${g.name}</span>
-                    <div>
-                        <button class="btn-alt" style="padding:2px 8px; margin-right:5px;" onclick="window.toggleGroupLock('${id}', ${g.locked})">${lockEmoji}</button>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-alt" style="padding:2px 8px;" onclick="window.toggleLineupsLock('${id}', ${g.lineups_locked})">${lineupLockEmoji}</button>
+                        <button class="btn-alt" style="padding:2px 8px;" onclick="window.toggleGroupLock('${id}', ${g.locked})">${lockEmoji}</button>
                         <button class="btn-danger" style="padding:2px 8px" onclick="window.deleteGroup('${id}')">X</button>
                     </div>
                 </div>`;
@@ -1959,8 +1965,9 @@
             if(gMatchesRaw.length === 0) return;
             
             const gMatches = sortMatchesByDate(gMatchesRaw);
-            const groupData = state.groups[gId] || { locked: false };
+            const groupData = state.groups[gId] || { locked: false, lineups_locked: false };
             const isLocked = groupData.locked;
+            const areLineupsLocked = groupData.lineups_locked;
             const allFinished = gMatches.every(mId => state.matches[mId].status === 'Dohráno');
             
             const barColor = isLocked ? "#ef4444" : "#3b82f6";
@@ -2134,7 +2141,7 @@
                         
                         <div style="display:flex; gap:5px; margin-bottom:5px;">
                             <button onclick="window.placeBet('${mId}')" ${isDisabled ? 'disabled' : ''} style="flex:3">${isDisabled ? (isLocked ? 'Zamčeno' : 'Zavřeno') : btnTxt}</button>
-                            <button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #3b82f6" onclick="window.openLineupModal('${mId}', false)">Sestavy</button>
+                            ${!areLineupsLocked ? `<button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #3b82f6" onclick="window.openLineupModal('${mId}', false)">Sestavy</button>` : ''}
                         </div>
                         
                         ${m.status !== "Plánováno" ? `
