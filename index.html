@@ -643,7 +643,7 @@
         }
 
         /* SÁZENÍ */
-        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay, #shootoutModalOverlay { 
+        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay, #shootoutModalOverlay, #lineupModalOverlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); z-index: 10000; display: none; 
             align-items: center; justify-content: center; backdrop-filter: blur(5px);
@@ -769,6 +769,32 @@
             padding: 4px 8px; 
             font-size: 11px; 
         }
+
+        /* LINEUP STYLY */
+        .lineup-formation {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #334155;
+            text-align: left;
+        }
+        .lineup-formation-title {
+            color: #3b82f6;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .lineup-player-tag {
+            background: #334155;
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+        }
     </style>
 </head>
 <body>
@@ -829,6 +855,18 @@
                 <button onclick="window.confirmShootout()" class="btn-success" style="flex:2;">Uložit nájezd</button>
                 <button onclick="document.getElementById('shootoutModalOverlay').style.display='none'" class="btn-alt" style="flex:1;">Zavřít</button>
             </div>
+        </div>
+    </div>
+
+    <div id="lineupModalOverlay">
+        <div class="auth-box" style="max-width: 500px; width: 95%;">
+            <h3 id="lineupModalTitle" style="color:#3b82f6; margin:0 0 15px 0;">Sestavy</h3>
+            <div id="lineupModalBody" style="max-height: 450px; overflow-y: auto; margin-bottom: 15px;"></div>
+            <div id="lineupAdminTools" style="display:none; border-top: 1px solid #334155; padding-top:10px;">
+                <input type="text" id="newFormationName" placeholder="Název formace (např. 1. Útok)">
+                <button onclick="window.addLineupFormation()" class="btn-success" style="width:100%; margin-bottom:10px;">+ Přidat formaci</button>
+            </div>
+            <button onclick="document.getElementById('lineupModalOverlay').style.display='none'" class="btn-alt" style="width:100%;">Zavřít</button>
         </div>
     </div>
 
@@ -1280,6 +1318,87 @@
         document.getElementById('shootoutModalOverlay').style.display = 'none';
     };
 
+    // --- SESTAVY (LINEUPS) ---
+    window.openLineupModal = (mId, isAdmin = false) => {
+        const m = state.matches[mId];
+        state.currentAdminMatchId = mId;
+        document.getElementById('lineupModalTitle').innerText = `Sestavy: ${m.home} vs ${m.away}`;
+        document.getElementById('lineupAdminTools').style.display = isAdmin ? 'block' : 'none';
+        
+        const body = document.getElementById('lineupModalBody');
+        const lineups = m.lineups || [];
+
+        if (lineups.length === 0) {
+            body.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:20px;">Sestavy nejsou zveřejněny</p>';
+        } else {
+            let html = "";
+            lineups.forEach((form, fIdx) => {
+                html += `
+                    <div class="lineup-formation">
+                        <div class="lineup-formation-title">
+                            ${form.name}
+                            ${isAdmin ? `<button class="btn-danger btn-small" onclick="window.removeLineupFormation(${fIdx})">X</button>` : ""}
+                        </div>
+                        <div id="formation-players-${fIdx}">
+                            ${(form.players || []).map((p, pIdx) => `
+                                <span class="lineup-player-tag">
+                                    ${p} ${isAdmin ? `<span style="margin-left:5px; cursor:pointer; color:#ef4444" onclick="window.removeLineupPlayer(${fIdx}, ${pIdx})">×</span>` : ""}
+                                </span>
+                            `).join("")}
+                        </div>
+                        ${isAdmin ? `
+                            <div style="display:flex; gap:5px; margin-top:8px;">
+                                <input type="text" id="newPlayerName-${fIdx}" placeholder="Jméno hráče" style="font-size:11px; padding:4px;">
+                                <button class="btn-success btn-small" onclick="window.addLineupPlayer(${fIdx})">+</button>
+                            </div>
+                        ` : ""}
+                    </div>`;
+            });
+            body.innerHTML = html;
+        }
+        document.getElementById('lineupModalOverlay').style.display = 'flex';
+    };
+
+    window.addLineupFormation = () => {
+        const mId = state.currentAdminMatchId;
+        const name = document.getElementById('newFormationName').value;
+        if (!name) return;
+        const m = state.matches[mId];
+        const lineups = m.lineups || [];
+        lineups.push({ name: name, players: [] });
+        update(ref(db, `matches/${mId}`), { lineups: lineups });
+        document.getElementById('newFormationName').value = "";
+        setTimeout(() => window.openLineupModal(mId, true), 100);
+    };
+
+    window.removeLineupFormation = (fIdx) => {
+        const mId = state.currentAdminMatchId;
+        if (!confirm("Smazat celou formaci?")) return;
+        const lineups = state.matches[mId].lineups;
+        lineups.splice(fIdx, 1);
+        update(ref(db, `matches/${mId}`), { lineups: lineups });
+        setTimeout(() => window.openLineupModal(mId, true), 100);
+    };
+
+    window.addLineupPlayer = (fIdx) => {
+        const mId = state.currentAdminMatchId;
+        const pName = document.getElementById(`newPlayerName-${fIdx}`).value;
+        if (!pName) return;
+        const lineups = state.matches[mId].lineups;
+        if (!lineups[fIdx].players) lineups[fIdx].players = [];
+        lineups[fIdx].players.push(pName);
+        update(ref(db, `matches/${mId}`), { lineups: lineups });
+        setTimeout(() => window.openLineupModal(mId, true), 100);
+    };
+
+    window.removeLineupPlayer = (fIdx, pIdx) => {
+        const mId = state.currentAdminMatchId;
+        const lineups = state.matches[mId].lineups;
+        lineups[fIdx].players.splice(pIdx, 1);
+        update(ref(db, `matches/${mId}`), { lineups: lineups });
+        setTimeout(() => window.openLineupModal(mId, true), 100);
+    };
+
     window.changeScore = (id, teamIdx, delta) => {
         const m = state.matches[id];
         let parts = m.score.split(":").map(Number);
@@ -1372,11 +1491,11 @@
         const histArr = Object.values(histObj || {}).sort((a,b) => b.time - a.time);
         
         histArr.forEach(h => {
-            const matchName = h.match.split(" (")[0]; // Odstraní (result), (score) atd.
+            const matchName = h.match.split(" (")[0]; 
             if (!grouped[matchName]) {
                 grouped[matchName] = {
                     name: matchName,
-                    time: h.time, // Pro řazení skupin
+                    time: h.time, 
                     items: []
                 };
             }
@@ -1386,7 +1505,6 @@
         return Object.values(grouped).sort((a, b) => b.time - a.time);
     }
 
-    // GENEROVANI HISTORIE
     function generateHistoryHtml(groupedHist, limit = null) {
         if (groupedHist.length === 0) {
             return '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">Žádná historie</td></tr>';
@@ -1442,7 +1560,6 @@
             closed: true 
         });
 
-        // VYHODNOCENI
         const evalScore = m.scoreFullTime || m.score;
         const [hS, aS] = evalScore.split(":").map(Number);
         const actualRes = hS > aS ? "1" : (aS > hS ? "2" : "0");
@@ -1709,6 +1826,7 @@
             <input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}">
             <input onchange="window.updateMatch('${id}','description',this.value)" value="${m.description || ''}" placeholder="Libovolný popis zápasu (volitelné)">
             <select onchange="window.updateMatch('${id}', 'group', this.value)">${gOpts}</select>
+            <button class="btn-alt" style="width:100%; margin-bottom:5px; border:1px solid #60a5fa;" onclick="window.openLineupModal('${id}', true)">Sestavy</button>
             ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.startMatchWithAnimation('${id}')">ZAČÍT ZÁPAS</button>` : 
             `<div>
                 <select style="width:100%" onchange="window.updateMatch('${id}','status',this.value)">
@@ -1758,7 +1876,6 @@
         document.getElementById("myBalance").innerText = myData.balance !== undefined ? myData.balance : 2500;
         document.getElementById("displayName").innerText = myData.name || "Hráč";
         
-        // ADMIN BUTTON
         const adminBtn = document.querySelector('button[onclick="window.adminLogin()"]');
         if (adminBtn) {
             adminBtn.style.display = (state.pId === ADMIN_UID) ? "block" : "none";
@@ -1837,7 +1954,6 @@
                 let currentOverlay = "";
                 const now = Date.now();
 
-                // ADMIN PANEL
                 if (m.startAnim && (now - m.startAnim < 6000)) {
                     currentOverlay = `
                         <div class="start-overlay">
@@ -1923,7 +2039,6 @@
                     });
                 }
 
-                // SPECIÁLNÍ TEXTY PRO PRODLOUŽENÍ / NÁJEZDY
                 let subScoreHtml = "";
                 if (m.scoreFullTime) {
                     subScoreHtml = `<div style="font-size:11px; color:#94a3b8; margin-top:-5px; margin-bottom:5px;">(v zákl. hrací době ${m.scoreFullTime})</div>`;
@@ -1934,8 +2049,6 @@
                     shootoutIndicator = `<div style="font-size:13px; color:#6ee7b7; font-weight:bold;">Nájezdy: ${m.shootoutScore}</div>`;
                 }
 
-                // PŘÍPONA SKÓRE (p / n)
-                let finalBadgeColor = "#059669";
                 let displayScore = m.score;
                 if (isF) {
                     if (m.shootoutScore) displayScore += "n";
@@ -1950,14 +2063,17 @@
 
                         <div class="teams" style="${currentOverlay !== "" ? 'opacity:0' : 'opacity:1'}">
                             ${hLogoHtml} ${m.home} 
-                            ${m.status !== 'Plánováno' && !isF ? `<span class="live-score">${m.score}</span>` : (isF ? `<span class="live-score" style="background:${finalBadgeColor}">${displayScore}</span>` : 'vs')} 
+                            ${m.status !== 'Plánováno' && !isF ? `<span class="live-score">${m.score}</span>` : (isF ? `<span class="live-score" style="background:#059669">${displayScore}</span>` : 'vs')} 
                             ${m.away} ${aLogoHtml}
                         </div>
                         
                         ${subScoreHtml}
                         ${shootoutIndicator}
                         
-                        <button onclick="window.placeBet('${mId}')" ${isDisabled ? 'disabled' : ''} style="width:100%">${isDisabled ? (isLocked ? 'Zamčeno' : 'Zavřeno') : btnTxt}</button>
+                        <div style="display:flex; gap:5px; margin-bottom:5px;">
+                            <button onclick="window.placeBet('${mId}')" ${isDisabled ? 'disabled' : ''} style="flex:3">${isDisabled ? (isLocked ? 'Zamčeno' : 'Zavřeno') : btnTxt}</button>
+                            <button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #3b82f6" onclick="window.openLineupModal('${mId}', false)">Sestavy</button>
+                        </div>
                         
                         ${m.status !== "Plánováno" ? `
                             <button class="btn-alt" style="width:100%; margin-top:5px; font-size:11px; padding:5px" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'table' ? 'none' : 'table'">Průběh zápasu</button>
@@ -1988,7 +2104,7 @@
             }
             hHtml += `<tr class="${pid===state.pId?'my-row':''}">
                 <td>${idx+1}.</td>
-                <td><span class="player-link" onclick="window.showPlayerHistory('${pid}')">${p.name||'Borec'}</span></td>
+                <td><span class="player-link" onclick="window.showPlayerHistory('${pid}')">${p.name||'Borec'}</b></td>
                 <td><b>${p.balance||0}</b></td>
                 <td>${bH}</td>
             </tr>`;
@@ -1997,4 +2113,4 @@
     }
 </script>
 </body>
-</htmlx>
+</html>
