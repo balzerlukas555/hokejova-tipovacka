@@ -643,7 +643,7 @@
         }
 
         /* SÁZENÍ */
-        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay, #shootoutModalOverlay, #lineupModalOverlay { 
+        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay, #shootoutModalOverlay, #lineupModalOverlay, #goalModalOverlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); z-index: 10000; display: none; 
             align-items: center; justify-content: center; backdrop-filter: blur(5px);
@@ -831,6 +831,23 @@
             <h3 id="histPlayerName" style="color:#3b82f6; margin:0 0 10px 0;">Historie hráče</h3>
             <div id="playerHistoryTableWrap" style="max-height: 400px; overflow-y: auto;"></div>
             <button onclick="document.getElementById('playerHistoryOverlay').style.display='none'" class="btn-alt" style="width:100%; margin-top:15px;">Zavřít</button>
+        </div>
+    </div>
+
+    <div id="goalModalOverlay">
+        <div class="auth-box" style="max-width: 400px; width: 95%;">
+            <h3 style="color:#fbbf24; margin:0 0 15px 0;">Zadat gól</h3>
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left;">Čas gólu:</label>
+            <input type="text" id="goalTimeInput" placeholder="Např. 14'">
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Střelec gólu:</label>
+            <input type="text" id="goalScorerInput" placeholder="Jméno střelce">
+            <label style="font-size: 12px; color: #94a3b8; display: block; text-align: left; margin-top:10px;">Doplňující informace:</label>
+            <input type="text" id="goalExtraInput" placeholder="Např. přesilovka (volitelné)">
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="window.confirmGoal()" class="btn-success" style="flex:2;">Uložit gól</button>
+                <button onclick="document.getElementById('goalModalOverlay').style.display='none'" class="btn-alt" style="flex:1;">Zrušit</button>
+            </div>
         </div>
     </div>
 
@@ -1460,45 +1477,56 @@
 
     window.changeScore = (id, teamIdx, delta) => {
         const m = state.matches[id];
-        let parts = m.score.split(":").map(Number);
         
-        let scorer = null;
         if (delta > 0) {
-            scorer = prompt("Zadej jméno střelce gólu:");
-            if (!scorer) scorer = "S. Neuveden";
+            state.currentAdminMatchId = id;
+            state.currentGoalTeamIdx = teamIdx;
             
-            const minute = prompt("Zadej minutu gólu (např. 24'):");
-            
-            const timeline = m.timeline || [];
-            parts[teamIdx] = Math.max(0, parts[teamIdx] + delta);
-            const newScore = parts.join(":");
-            
-            timeline.push({
-                type: "goal",
-                team: teamIdx === 0 ? "home" : "away",
-                scorer: scorer,
-                minute: minute || "",
-                score: newScore,
-                time: Date.now()
-            });
-            
-            update(ref(db, `matches/${id}`), { 
-                lastScorer: scorer,
-                timeline: timeline
-            });
+            document.getElementById('goalTimeInput').value = "";
+            document.getElementById('goalScorerInput').value = "";
+            document.getElementById('goalExtraInput').value = "";
+            document.getElementById('goalModalOverlay').style.display = 'flex';
         } else {
+            let parts = m.score.split(":").map(Number);
             parts[teamIdx] = Math.max(0, parts[teamIdx] + delta);
+            window.updateMatch(id, 'score', parts.join(":"));
         }
+    };
 
+    window.confirmGoal = () => {
+        const id = state.currentAdminMatchId;
+        const teamIdx = state.currentGoalTeamIdx;
+        const m = state.matches[id];
+        
+        const scorer = document.getElementById('goalScorerInput').value || "S. Neuveden";
+        const minute = document.getElementById('goalTimeInput').value || "";
+        const extra = document.getElementById('goalExtraInput').value || "";
+        
+        let parts = m.score.split(":").map(Number);
+        parts[teamIdx] = Math.max(0, parts[teamIdx] + 1);
         const newScore = parts.join(":");
-        window.updateMatch(id, 'score', newScore);
+        
+        const timeline = m.timeline || [];
+        timeline.push({
+            type: "goal",
+            team: teamIdx === 0 ? "home" : "away",
+            scorer: scorer,
+            minute: minute,
+            extraInfo: extra,
+            score: newScore,
+            time: Date.now()
+        });
+        
+        update(ref(db, `matches/${id}`), { 
+            score: newScore,
+            lastScorer: scorer,
+            timeline: timeline
+        });
 
-        if (delta > 0) {
-            const teamName = teamIdx === 0 ? m.home : m.away;
-            const finalScorer = m.lastScorer || "S. Neuveden";
-            const pushMsg = finalScorer ? `${m.home} ${newScore} ${m.away} (Gól: ${finalScorer})` : `${m.home} ${newScore} ${m.away}`;
-            window.sendPushNotification(`⚽ GÓÓÓL! (${teamName})`, pushMsg);
-        }
+        document.getElementById('goalModalOverlay').style.display = 'none';
+
+        const teamName = teamIdx === 0 ? m.home : m.away;
+        window.sendPushNotification(`⚽ GÓÓÓL! (${teamName})`, `${m.home} ${newScore} ${m.away} (Gól: ${scorer})`);
     };
 
     window.deleteMatch = (id) => {
@@ -2074,8 +2102,8 @@
                                 <tr>
                                     <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
                                     <td style="text-align:left">
-                                        <b>${t.scorer}</b>
-                                        <div style="font-size:10px; color:#94a3b8;">${t.minute}</div>
+                                        <b style="font-size:14px;">${t.scorer} (${t.minute})</b>
+                                        ${t.extraInfo ? `<div style="font-size:11px; color:#6ee7b7; margin-top:2px;">${t.extraInfo}</div>` : ''}
                                     </td>
                                     <td style="text-align:right; color:#3b82f6; font-weight:bold">(${t.score})</td>
                                 </tr>`;
