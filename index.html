@@ -45,6 +45,10 @@
             max-width: 350px; 
             border: 1px solid #3b82f6; 
             box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            /* OPRAVA SCROLLOVÁNÍ MODALU */
+            max-height: 90vh;
+            overflow-y: auto;
+            box-sizing: border-box;
         }
         .auth-box h2 { 
             margin-top: 0; 
@@ -958,13 +962,13 @@
                     <input type="text" id="betScorerName2" placeholder="2. Střelec (např. D. Kubalík)">
                     <div class="stake-input-wrap"><input type="number" id="stakeScorer2" placeholder="Vklad (TC)"></div>
                 </div>
-                <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px;">
+                <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; margin-bottom: 40px;">
                     <input type="text" id="betScorerName3" placeholder="3. Střelec (např. J. Lauko)">
                     <div class="stake-input-wrap"><input type="number" id="stakeScorer3" placeholder="Vklad (TC)"></div>
                 </div>
             </div>
 
-            <div style="display:flex; gap:10px; margin-top:20px;">
+            <div style="display:flex; gap:10px; margin-top:20px; padding-bottom: 20px;">
                 <button onclick="window.confirmBet()" class="btn-success" style="flex:2;">Potvrdit sázky</button>
                 <button onclick="document.getElementById('betSelectorOverlay').style.display='none'" class="btn-alt" style="flex:1;">Zavřít</button>
             </div>
@@ -1126,7 +1130,7 @@
         return matchIds.sort((a, b) => {
             const m1 = state.matches[a];
             const m2 = state.matches[b];
-            return parseMatchDate(m1.date) - parseMatchDate(m2.date);
+            return parseMatchDate(m1.date) - parseMatchDate(m1.date);
         });
     };
 
