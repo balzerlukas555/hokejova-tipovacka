@@ -946,6 +946,13 @@
                 <div class="stake-input-wrap"><input type="number" id="stakeGoals" placeholder="Vklad (TC)"></div>
             </div>
 
+            <div class="bet-market-section">
+                <div class="bet-market-title">Vsadit na střelce (3x)</div>
+                <p style="font-size:10px; color:#94a3b8; margin: -5px 0 5px 0;">Formát: David Pastrňák -> D. Pastrňák</p>
+                <input type="text" id="betScorerName" placeholder="Jméno střelce (např. D. Pastrňák)">
+                <div class="stake-input-wrap"><input type="number" id="stakeScorer" placeholder="Vklad (TC)"></div>
+            </div>
+
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button onclick="window.confirmBet()" class="btn-success" style="flex:2;">Potvrdit sázky</button>
                 <button onclick="document.getElementById('betSelectorOverlay').style.display='none'" class="btn-alt" style="flex:1;">Zavřít</button>
@@ -1608,7 +1615,7 @@
                         <table class="hist-table" style="margin-top:0;">`;
             
             group.items.forEach(h => {
-                const typeLabel = h.match.includes('(result)') ? 'Výsledek' : (h.match.includes('(score)') ? 'Skóre' : 'Góly');
+                const typeLabel = h.match.includes('(result)') ? 'Výsledek' : (h.match.includes('(score)') ? 'Skóre' : (h.match.includes('(scorer)') ? 'Střelec' : 'Góly'));
                 const rowClass = h.type === "gold" ? "hist-row-gold" : (h.type === "win" ? "hist-row-win" : "hist-row-loss");
                 html += `<tr class="${rowClass}">
                     <td style="font-size:9px;">${typeLabel}</td>
@@ -1651,13 +1658,14 @@
         const [hS, aS] = evalScore.split(":").map(Number);
         const actualRes = hS > aS ? "1" : (aS > hS ? "2" : "0");
         const totalG = hS + aS;
+        const scorersInTimeline = (m.timeline || []).filter(t => t.type === "goal").map(t => t.scorer);
 
         Object.keys(state.players).forEach(pId => {
             const p = state.players[pId];
             const fullBet = p?.bets?.[mId];
             if(!fullBet) return;
             
-            ["result", "score", "goals"].forEach(type => {
+            ["result", "score", "goals", "scorer"].forEach(type => {
                 const bet = fullBet[type];
                 if(!bet) return;
 
@@ -1680,6 +1688,9 @@
                     else if(bet.tip === "M 2.5" && totalG < 2.5) { finalMult = 2.0; winType = "win"; }
                     else if(bet.tip === "M 4.5" && totalG < 4.5) { finalMult = 1.6; winType = "win"; }
                     else if(bet.tip === "M 6.5" && totalG < 6.5) { finalMult = 1.3; winType = "win"; }
+                }
+                else if(type === "scorer") {
+                    if(scorersInTimeline.includes(bet.tip)) { finalMult = 3; winType = "win"; }
                 }
 
                 const gain = finalMult > 0 ? Math.floor(bet.stake * finalMult) : -bet.stake;
@@ -1728,6 +1739,8 @@
         document.getElementById('betScoreVal').value = exB.score?.tip || "";
         document.getElementById('stakeScore').value = exB.score?.stake || "";
         document.getElementById('stakeGoals').value = exB.goals?.stake || "";
+        document.getElementById('betScorerName').value = exB.scorer?.tip || "";
+        document.getElementById('stakeScorer').value = exB.scorer?.stake || "";
 
         document.getElementById('betSelectorOverlay').style.display = 'flex';
     };
@@ -1743,6 +1756,7 @@
             if(oldFullBet.result) curB += oldFullBet.result.stake;
             if(oldFullBet.score) curB += oldFullBet.score.stake;
             if(oldFullBet.goals) curB += oldFullBet.goals.stake;
+            if(oldFullBet.scorer) curB += oldFullBet.scorer.stake;
         }
 
         const newBets = {};
@@ -1763,6 +1777,12 @@
         if(state.tempBets.goals && sGoa > 0) {
             newBets.goals = { tip: state.tempBets.goals, stake: sGoa };
             totalNewStake += sGoa;
+        }
+        const vScor = document.getElementById('betScorerName').value;
+        const sScor = parseInt(document.getElementById('stakeScorer').value);
+        if(vScor.length > 2 && sScor > 0) {
+            newBets.scorer = { tip: vScor, stake: sScor };
+            totalNewStake += sScor;
         }
 
         if(totalNewStake === 0) return alert("Zadej aspoň jednu platnou sázku s vkladem!");
@@ -1828,7 +1848,8 @@
                     txt = "";
                     if(b.result) txt += `V: ${b.result.tip} (${b.result.stake} TC)<br>`;
                     if(b.score) txt += `S: ${b.score.tip} (${b.score.stake} TC)<br>`;
-                    if(b.goals) txt += `G: ${b.goals.tip} (${b.goals.stake} TC)`;
+                    if(b.goals) txt += `G: ${b.goals.tip} (${b.goals.stake} TC)<br>`;
+                    if(b.scorer) txt += `ST: ${b.scorer.tip} (${b.scorer.stake} TC)`;
                 }
                 bHtml += `<td class="${isLive ? 'live-cell' : ''}" data-label="${m.home} - ${m.away}">${txt}</td>`;
             });
@@ -2037,7 +2058,7 @@
 
                 let btnTxt = "Vsadit";
                 if(myB) {
-                    let c = 0; if(myB.result) c++; if(myB.score) c++; if(myB.goals) c++;
+                    let c = 0; if(myB.result) c++; if(myB.score) c++; if(myB.goals) c++; if(myB.scorer) c++;
                     btnTxt = `Vsazeno (${c}x)`;
                 }
 
@@ -2190,7 +2211,7 @@
                     if(m && m.status !== "Dohráno") {
                         const b = p.bets[mid];
                         let bParts = [];
-                        if(b.result) bParts.push(b.result.tip); if(b.score) bParts.push(b.score.tip); if(b.goals) bParts.push(b.goals.tip);
+                        if(b.result) bParts.push(b.result.tip); if(b.score) bParts.push(b.score.tip); if(b.goals) bParts.push(b.goals.tip); if(b.scorer) bParts.push(b.scorer.tip);
                         bH += `<span class="bet-info">${m.home.slice(0,3)}-${m.away.slice(0,3)}: ${bParts.join(", ")}</span>`;
                     }
                 }); 
