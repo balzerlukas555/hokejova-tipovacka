@@ -795,6 +795,29 @@
             font-size: 12px;
             margin: 2px;
         }
+        
+        /* MODAL ROZLOŽENÍ */
+        .lineup-split-container {
+            display: flex;
+            gap: 20px;
+            text-align: left;
+        }
+        .lineup-column {
+            flex: 1;
+        }
+        .lineup-column-title {
+            color: #fbbf24;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 5px;
+        }
+        @media (max-width: 480px) {
+            .lineup-split-container {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -859,7 +882,7 @@
     </div>
 
     <div id="lineupModalOverlay">
-        <div class="auth-box" style="max-width: 500px; width: 95%;">
+        <div class="auth-box" style="max-width: 600px; width: 95%;">
             <h3 id="lineupModalTitle" style="color:#3b82f6; margin:0 0 15px 0;">Sestavy</h3>
             <div id="lineupModalBody" style="max-height: 450px; overflow-y: auto; margin-bottom: 15px;"></div>
             <div id="lineupAdminTools" style="display:none; border-top: 1px solid #334155; padding-top:10px;">
@@ -1014,7 +1037,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, currentAdminMatchId: null, tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
+    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, currentAdminMatchId: null, currentAdminSide: 'home', tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
 
     const ADMIN_UID = "ic18MLTfKyfu9uRt1Q2A8jxrbw73";
 
@@ -1319,84 +1342,120 @@
     };
 
     // --- SESTAVY (LINEUPS) ---
-    window.openLineupModal = (mId, isAdmin = false) => {
+    window.openLineupModal = (mId, isAdmin = false, side = 'home') => {
         const m = state.matches[mId];
         state.currentAdminMatchId = mId;
-        document.getElementById('lineupModalTitle').innerText = `Sestavy: ${m.home} vs ${m.away}`;
-        document.getElementById('lineupAdminTools').style.display = isAdmin ? 'block' : 'none';
+        state.currentAdminSide = side;
         
         const body = document.getElementById('lineupModalBody');
-        const lineups = m.lineups || [];
+        document.getElementById('lineupAdminTools').style.display = isAdmin ? 'block' : 'none';
 
-        if (lineups.length === 0) {
-            body.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:20px;">Sestavy nejsou zveřejněny</p>';
+        if (isAdmin) {
+            document.getElementById('lineupModalTitle').innerText = side === 'home' ? `Sestava domácích: ${m.home}` : `Sestava hostů: ${m.away}`;
+            const lineups = side === 'home' ? (m.lineupsHome || []) : (m.lineupsAway || []);
+            renderLineupHtml(lineups, isAdmin, body);
         } else {
-            let html = "";
-            lineups.forEach((form, fIdx) => {
-                html += `
-                    <div class="lineup-formation">
-                        <div class="lineup-formation-title">
-                            ${form.name}
-                            ${isAdmin ? `<button class="btn-danger btn-small" onclick="window.removeLineupFormation(${fIdx})">X</button>` : ""}
-                        </div>
-                        <div id="formation-players-${fIdx}">
-                            ${(form.players || []).map((p, pIdx) => `
-                                <span class="lineup-player-tag">
-                                    ${p} ${isAdmin ? `<span style="margin-left:5px; cursor:pointer; color:#ef4444" onclick="window.removeLineupPlayer(${fIdx}, ${pIdx})">×</span>` : ""}
-                                </span>
-                            `).join("")}
-                        </div>
-                        ${isAdmin ? `
-                            <div style="display:flex; gap:5px; margin-top:8px;">
-                                <input type="text" id="newPlayerName-${fIdx}" placeholder="Jméno hráče" style="font-size:11px; padding:4px;">
-                                <button class="btn-success btn-small" onclick="window.addLineupPlayer(${fIdx})">+</button>
-                            </div>
-                        ` : ""}
-                    </div>`;
-            });
+            document.getElementById('lineupModalTitle').innerText = `Sestavy: ${m.home} vs ${m.away}`;
+            const homeLineups = m.lineupsHome || [];
+            const awayLineups = m.lineupsAway || [];
+            
+            let html = `<div class="lineup-split-container">
+                <div class="lineup-column">
+                    <div class="lineup-column-title">${m.home}</div>
+                    ${homeLineups.length === 0 ? '<p style="color:#94a3b8; font-size:12px;">Není zadáno</p>' : ''}
+                    <div id="home-side-view"></div>
+                </div>
+                <div class="lineup-column">
+                    <div class="lineup-column-title">${m.away}</div>
+                    ${awayLineups.length === 0 ? '<p style="color:#94a3b8; font-size:12px;">Není zadáno</p>' : ''}
+                    <div id="away-side-view"></div>
+                </div>
+            </div>`;
             body.innerHTML = html;
+            renderLineupHtml(homeLineups, false, document.getElementById('home-side-view'));
+            renderLineupHtml(awayLineups, false, document.getElementById('away-side-view'));
         }
+        
         document.getElementById('lineupModalOverlay').style.display = 'flex';
     };
 
+    function renderLineupHtml(lineups, isAdmin, container) {
+        if (lineups.length === 0 && isAdmin) {
+            container.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:20px;">Zatím žádné formace</p>';
+            return;
+        }
+        let html = "";
+        lineups.forEach((form, fIdx) => {
+            html += `
+                <div class="lineup-formation">
+                    <div class="lineup-formation-title">
+                        ${form.name}
+                        ${isAdmin ? `<button class="btn-danger btn-small" onclick="window.removeLineupFormation(${fIdx})">X</button>` : ""}
+                    </div>
+                    <div>
+                        ${(form.players || []).map((p, pIdx) => `
+                            <span class="lineup-player-tag">
+                                ${p} ${isAdmin ? `<span style="margin-left:5px; cursor:pointer; color:#ef4444" onclick="window.removeLineupPlayer(${fIdx}, ${pIdx})">×</span>` : ""}
+                            </span>
+                        `).join("")}
+                    </div>
+                    ${isAdmin ? `
+                        <div style="display:flex; gap:5px; margin-top:8px;">
+                            <input type="text" id="newPlayerName-${fIdx}" placeholder="Jméno hráče" style="font-size:11px; padding:4px;">
+                            <button class="btn-success btn-small" onclick="window.addLineupPlayer(${fIdx})">+</button>
+                        </div>
+                    ` : ""}
+                </div>`;
+        });
+        container.innerHTML = html;
+    }
+
     window.addLineupFormation = () => {
         const mId = state.currentAdminMatchId;
+        const side = state.currentAdminSide;
         const name = document.getElementById('newFormationName').value;
         if (!name) return;
         const m = state.matches[mId];
-        const lineups = m.lineups || [];
+        const key = side === 'home' ? 'lineupsHome' : 'lineupsAway';
+        const lineups = m[key] || [];
         lineups.push({ name: name, players: [] });
-        update(ref(db, `matches/${mId}`), { lineups: lineups });
+        update(ref(db, `matches/${mId}`), { [key]: lineups });
         document.getElementById('newFormationName').value = "";
-        setTimeout(() => window.openLineupModal(mId, true), 100);
+        setTimeout(() => window.openLineupModal(mId, true, side), 100);
     };
 
     window.removeLineupFormation = (fIdx) => {
         const mId = state.currentAdminMatchId;
+        const side = state.currentAdminSide;
         if (!confirm("Smazat celou formaci?")) return;
-        const lineups = state.matches[mId].lineups;
+        const key = side === 'home' ? 'lineupsHome' : 'lineupsAway';
+        const lineups = state.matches[mId][key];
         lineups.splice(fIdx, 1);
-        update(ref(db, `matches/${mId}`), { lineups: lineups });
-        setTimeout(() => window.openLineupModal(mId, true), 100);
+        update(ref(db, `matches/${mId}`), { [key]: lineups });
+        setTimeout(() => window.openLineupModal(mId, true, side), 100);
     };
 
     window.addLineupPlayer = (fIdx) => {
         const mId = state.currentAdminMatchId;
+        const side = state.currentAdminSide;
         const pName = document.getElementById(`newPlayerName-${fIdx}`).value;
         if (!pName) return;
-        const lineups = state.matches[mId].lineups;
+        const key = side === 'home' ? 'lineupsHome' : 'lineupsAway';
+        const lineups = state.matches[mId][key];
         if (!lineups[fIdx].players) lineups[fIdx].players = [];
         lineups[fIdx].players.push(pName);
-        update(ref(db, `matches/${mId}`), { lineups: lineups });
-        setTimeout(() => window.openLineupModal(mId, true), 100);
+        update(ref(db, `matches/${mId}`), { [key]: lineups });
+        setTimeout(() => window.openLineupModal(mId, true, side), 100);
     };
 
     window.removeLineupPlayer = (fIdx, pIdx) => {
         const mId = state.currentAdminMatchId;
-        const lineups = state.matches[mId].lineups;
+        const side = state.currentAdminSide;
+        const key = side === 'home' ? 'lineupsHome' : 'lineupsAway';
+        const lineups = state.matches[mId][key];
         lineups[fIdx].players.splice(pIdx, 1);
-        update(ref(db, `matches/${mId}`), { lineups: lineups });
-        setTimeout(() => window.openLineupModal(mId, true), 100);
+        update(ref(db, `matches/${mId}`), { [key]: lineups });
+        setTimeout(() => window.openLineupModal(mId, true, side), 100);
     };
 
     window.changeScore = (id, teamIdx, delta) => {
@@ -1826,7 +1885,10 @@
             <input onchange="window.updateMatch('${id}','date',this.value)" value="${m.date}">
             <input onchange="window.updateMatch('${id}','description',this.value)" value="${m.description || ''}" placeholder="Libovolný popis zápasu (volitelné)">
             <select onchange="window.updateMatch('${id}', 'group', this.value)">${gOpts}</select>
-            <button class="btn-alt" style="width:100%; margin-bottom:5px; border:1px solid #60a5fa;" onclick="window.openLineupModal('${id}', true)">Sestavy</button>
+            <div style="display:flex; gap:5px; margin-bottom:5px;">
+                <button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #60a5fa;" onclick="window.openLineupModal('${id}', true, 'home')">Sestava domácí</button>
+                <button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #60a5fa;" onclick="window.openLineupModal('${id}', true, 'away')">Sestava hostů</button>
+            </div>
             ${m.status === "Plánováno" ? `<button class="btn-success" style="width:100%" onclick="window.startMatchWithAnimation('${id}')">ZAČÍT ZÁPAS</button>` : 
             `<div>
                 <select style="width:100%" onchange="window.updateMatch('${id}','status',this.value)">
