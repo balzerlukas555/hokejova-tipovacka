@@ -1130,7 +1130,7 @@
         return matchIds.sort((a, b) => {
             const m1 = state.matches[a];
             const m2 = state.matches[b];
-            return parseMatchDate(m1.date) - parseMatchDate(m1.date);
+            return parseMatchDate(m1.date) - parseMatchDate(m2.date);
         });
     };
 
@@ -1756,11 +1756,11 @@
         document.getElementById('stakeGoals').value = exB.goals?.stake || "";
         
         document.getElementById('betScorerName').value = exB.scorer?.tip || "";
-        document.getElementById('stakeScorer').value = exB.scorer?.stake || "";
+        document.getElementById('stakeScorer').value = exB.stakeScorer || "";
         document.getElementById('betScorerName2').value = exB.scorer2?.tip || "";
-        document.getElementById('stakeScorer2').value = exB.scorer2?.stake || "";
+        document.getElementById('stakeScorer2').value = exB.stakeScorer2 || "";
         document.getElementById('betScorerName3').value = exB.scorer3?.tip || "";
-        document.getElementById('stakeScorer3').value = exB.scorer3?.stake || "";
+        document.getElementById('stakeScorer3').value = exB.stakeScorer3 || "";
 
         document.getElementById('betSelectorOverlay').style.display = 'flex';
     };
@@ -1963,7 +1963,8 @@
         const [sH, sA] = m.score.split(":").map(Number);
         const lineupLockEmoji = m.lineups_locked ? "🔒 Sestavy" : "🔓 Sestavy";
 
-        return `<div style="background:#111827; padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid #334155;">
+        return `<div style="background:#111827; padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid #334155; position: relative;">
+            <div style="position: absolute; top: 5px; right: 10px; font-size: 9px; color: #94a3b8;">ID: ${id}</div>
             <div style="display:flex; gap:5px; margin-bottom:5px;">
                 <input style="width:50%" onchange="window.updateMatch('${id}','home',this.value)" value="${m.home}">
                 <input style="width:50%" onchange="window.updateMatch('${id}','away',this.value)" value="${m.away}">
