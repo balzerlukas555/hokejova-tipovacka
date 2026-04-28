@@ -2024,6 +2024,22 @@
         </div>`;
     }
 
+    // --- LOGIKA PRO LOCALSTORAGE (Otevřené sekce) ---
+    window.toggleSectionStorage = (key, id) => {
+        let storage = JSON.parse(localStorage.getItem(key) || "[]");
+        if (storage.includes(id)) {
+            storage = storage.filter(x => x !== id);
+        } else {
+            storage.push(id);
+        }
+        localStorage.setItem(key, JSON.stringify(storage));
+    };
+
+    window.isSectionOpen = (key, id) => {
+        const storage = JSON.parse(localStorage.getItem(key) || "[]");
+        return storage.includes(id);
+    };
+
     function renderMain() {
         if (!state.pId) return;
         const myData = state.players[state.pId] || { balance: 2500, name: "Hráč" };
@@ -2055,19 +2071,22 @@
             const isLocked = groupData.locked;
             const allFinished = gMatches.every(mId => state.matches[mId].status === 'Dohráno');
             
+            // Kontrola z localStorage
+            const isManuallyOpen = window.isSectionOpen('openedGroups', gId);
+
             const barColor = isLocked ? "#ef4444" : "#3b82f6";
             const pointerStyle = isLocked ? "pointer-events: none; opacity: 0.9;" : "cursor: pointer;";
-            const lockIcon = isLocked ? "🔒" : "▼";
+            const lockIcon = isLocked ? "🔒" : (isManuallyOpen ? "▲" : "▼");
 
             let gHtml = `
                 <div class="group-container">
                     <div class="group-header ${allFinished ? 'finished' : ''}" 
                          style="border-left-color: ${barColor}; ${pointerStyle}"
-                         onclick="${isLocked ? '' : "this.nextElementSibling.classList.toggle('collapsed')" }">
+                         onclick="${isLocked ? '' : "window.toggleSectionStorage('openedGroups', '"+gId+"'); this.nextElementSibling.classList.toggle('collapsed'); renderMain();" }">
                         ${gId === "none" ? "Ostatní" : state.groups[gId].name} 
                         <span>${lockIcon}</span>
                     </div>
-                    <div class="group-content ${isLocked ? 'collapsed' : 'collapsed'}">`;
+                    <div class="group-content ${isManuallyOpen || isLocked ? '' : 'collapsed'}">`;
             
             gMatches.forEach(mId => {
                 const m = state.matches[mId]; 
@@ -2078,6 +2097,9 @@
                 const isPinned = pinnedIds.includes(mId) || ((isLive || m.status === 'Konec') && !hiddenLiveIds.includes(mId));
                 const isDisabled = m.status !== "Plánováno" || m.closed === true || isLocked;
                 const isLineupLocked = m.lineups_locked === true;
+
+                // Kontrola otevřeného průběhu zápasu
+                const isTimelineOpen = window.isSectionOpen('openedTimelines', mId);
 
                 let scoringTeam = null;
                 if (state.lastScores[mId] && state.lastScores[mId] !== m.score && m.status !== "Plánováno") {
@@ -2231,8 +2253,9 @@
                         </div>
                         
                         ${m.status !== "Plánováno" ? `
-                            <button class="btn-alt" style="width:100%; margin-top:5px; font-size:11px; padding:5px" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'table' ? 'none' : 'table'">Průběh zápasu</button>
-                            <table class="match-timeline-table">
+                            <button class="btn-alt" style="width:100%; margin-top:5px; font-size:11px; padding:5px" 
+                                onclick="window.toggleSectionStorage('openedTimelines', '${mId}'); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'table' ? 'none' : 'table'">Průběh zápasu</button>
+                            <table class="match-timeline-table" style="display: ${isTimelineOpen ? 'table' : 'none'}">
                                 ${timelineRows || '<tr><td colspan="3" style="color:#94a3b8; padding:10px">Zatím žádné události</td></tr>'}
                             </table>
                         ` : ''}
