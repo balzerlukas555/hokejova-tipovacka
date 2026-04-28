@@ -154,7 +154,7 @@
 
         #gameArea {
             flex: 1;
-            padding-bottom: 120px;
+            padding-bottom: 140px; /* Zvětšeno pro prostor menu */
         }
 
         #potArea { margin: 10px 0; font-size: 1rem; color: var(--gold); }
@@ -195,29 +195,69 @@
             50% { transform: rotate(1deg); }
         }
 
+        /* --- UPRAVENÁ SEKCE AKCÍ --- */
         #actions {
             position: fixed;
             bottom: 0;
             left: 0;
             width: 100%;
-            background: rgba(0,0,0,0.9);
-            padding: 10px 0;
-            backdrop-filter: blur(8px);
+            background: rgba(0,0,0,0.95);
+            padding: 15px 0;
+            backdrop-filter: blur(10px);
             display: none;
             z-index: 60;
-            border-top: 1px solid rgba(255,215,0,0.2);
+            border-top: 2px solid var(--gold);
+        }
+
+        .action-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 0 10px;
+        }
+
+        .bet-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
         }
 
         .game-btn {
-            padding: 10px 14px;
-            font-size: 0.75rem;
-            margin: 3px;
+            flex: 1;
+            padding: 15px 5px;
+            font-size: 0.9rem;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
             text-transform: uppercase;
+            min-height: 50px;
         }
+
+        #bet {
+            width: 100px !important;
+            height: 45px !important;
+            font-size: 1.2rem !important;
+            text-align: center;
+            margin: 0 !important;
+            background: #fff;
+            color: #000;
+            font-weight: bold;
+        }
+        /* --------------------------- */
+
         .bg-tip { 
             background: linear-gradient(135deg, #1e293b, #3b82f6); 
             color: white; 
@@ -226,9 +266,14 @@
         #nextBtn {
             background: #c40000;
             color: white;
-            width: 160px;
-            margin: 10px auto;
+            width: 180px;
+            padding: 15px;
+            margin: 20px auto;
             display: none;
+            border-radius: 8px;
+            font-weight: bold;
+            border: none;
+            text-transform: uppercase;
         }
 
         @media (max-width: 600px) {
@@ -237,7 +282,6 @@
                 --card-h: 36vw;
             }
             .player-box { min-width: 20vw; font-size: 0.65rem; }
-            .game-btn { padding: 8px 10px; font-size: 0.7rem; }
             #potArea { font-size: 0.9rem; }
             #msg { font-size: 0.75rem; }
         }
@@ -303,16 +347,21 @@
         <div id="potArea">BANK: <strong id="pot">0</strong> C</div>
         <div id="msg"></div>
         <div id="cardsArea"></div>
-        <button id="nextBtn" class="game-btn">DALŠÍ KOLO</button>
+        <button id="nextBtn">DALŠÍ KOLO</button>
     </div>
+    
     <div id="actions">
-        <div style="margin-bottom:8px;">
-            <span style="font-size:0.7rem; opacity:0.8;">SÁZKA:</span>
-            <input type="number" id="bet" value="50" min="10" step="10" style="width:60px; padding:5px; margin:0; display:inline-block; height:30px;">
+        <div class="action-container">
+            <div class="bet-row">
+                <span style="font-size:0.9rem; font-weight:bold; color:var(--gold);">SÁZKA:</span>
+                <input type="number" id="bet" value="50" min="10" step="10">
+            </div>
+            <div class="button-row">
+                <button id="playBtn" class="game-btn" style="background:#c40000; color:white;">HRÁT</button>
+                <button id="allInBtn" class="game-btn" style="background:var(--gold); color:black;">ALL-IN</button>
+                <button id="passBtn" class="game-btn" style="background:#444; color:white;">PAS</button>
+            </div>
         </div>
-        <button id="playBtn" class="game-btn" style="background:#c40000; color:white;">HRÁT</button>
-        <button id="allInBtn" class="game-btn" style="background:var(--gold); color:black;">ALL-IN</button>
-        <button id="passBtn" class="game-btn" style="background:#666; color:white;">PAS</button>
     </div>
 </div>
 
