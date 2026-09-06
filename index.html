@@ -647,7 +647,7 @@
         }
 
         /* SÁZENÍ */
-        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay, #shootoutModalOverlay, #lineupModalOverlay, #goalModalOverlay { 
+        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay, #shootoutModalOverlay, #lineupModalOverlay, #goalModalOverlay, #ticketModalOverlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); z-index: 10000; display: none; 
             align-items: center; justify-content: center; backdrop-filter: blur(5px);
@@ -822,6 +822,56 @@
                 flex-direction: column;
             }
         }
+
+        /* TICKET SYSTEM STYLY */
+        .ticket-item {
+            background: #1e293b;
+            border: 1px solid #3b82f6;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+        .ticket-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .ticket-subject {
+            font-weight: bold;
+            color: #3b82f6;
+            font-size: 14px;
+        }
+        .ticket-status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-open { background: #059669; color: white; }
+        .status-closed { background: #475569; color: white; }
+        .ticket-msg {
+            background: rgba(15, 23, 42, 0.5);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin: 4px 0;
+            border-left: 3px solid #3b82f6;
+        }
+        .ticket-msg.admin-reply {
+            border-left-color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+        }
+        .ticket-msg-meta {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-bottom: 2px;
+        }
     </style>
 </head>
 <body>
@@ -911,6 +961,26 @@
                 <button onclick="window.addLineupFormation()" class="btn-success" style="width:100%; margin-bottom:10px;">+ Přidat formaci</button>
             </div>
             <button onclick="document.getElementById('lineupModalOverlay').style.display='none'" class="btn-alt" style="width:100%;">Zavřít</button>
+        </div>
+    </div>
+
+    <div id="ticketModalOverlay">
+        <div class="auth-box" style="max-width: 500px; width: 95%;">
+            <h3 style="color:#3b82f6; margin:0 0 15px 0;">Podpora / Tikety</h3>
+            
+            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: left;">
+                <h4 style="margin: 0 0 8px 0; color: #fbbf24; font-size: 14px;">Vytvořit nový tiket</h4>
+                <input type="text" id="ticketSubjectInput" placeholder="Předmět (např. Chyba v vyhodnocení)">
+                <textarea id="ticketMessageInput" placeholder="Detailní popis problému..." style="width:100%; height:70px; background:#0f172a; color:white; border:1px solid #334155; border-radius:6px; padding:8px; box-sizing:border-box; margin-top:5px; font-family:inherit; font-size:12px;"></textarea>
+                <button onclick="window.createTicket()" class="btn-success" style="width:100%; margin-top:8px;">Odeslat tiket</button>
+            </div>
+
+            <h4 style="margin: 10px 0 5px 0; color: #3b82f6; text-align: left; font-size: 14px;">Moje tikety</h4>
+            <div id="userTicketsList" style="max-height: 250px; overflow-y: auto;">
+                Načítám tikety...
+            </div>
+
+            <button onclick="document.getElementById('ticketModalOverlay').style.display='none'" class="btn-alt" style="width:100%; margin-top:15px;">Zavřít</button>
         </div>
     </div>
 
@@ -1007,6 +1077,10 @@
             
             <div id="myHistory"></div>
             <div id="histToggle" class="hist-toggle" onclick="window.toggleFullHistory()">Zobrazit jen 3 ▲</div>
+            
+            <div style="margin-top:12px; border-top:1px solid #334155; padding-top:10px;">
+                <button onclick="window.openTicketModal()" class="btn-alt btn-small" style="width:100%; border:1px solid #3b82f6; color:#3b82f6;">🎫 Podpora / Tikety</button>
+            </div>
         </div>
 
         <div id="mainContent">
@@ -1047,6 +1121,12 @@
                 <div id="adminMatchesList" style="margin-top:15px;"></div>
             </div>
             <div class="admin-section">
+                <h3>Správa Tiketů</h3>
+                <div id="adminTicketsList" style="max-height: 300px; overflow-y: auto;">
+                    Načítám tikety...
+                </div>
+            </div>
+            <div class="admin-section">
                 <h3>Moderace hráčů</h3>
                 <div id="adminPlayersList"></div>
             </div>
@@ -1063,8 +1143,9 @@
     // vlajky: https://flagpedia.net/data/flags/h80/cz.png
     
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, remove, update, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, query, where, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
@@ -1076,7 +1157,8 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, currentAdminMatchId: null, currentAdminSide: 'home', tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
+    const fs = getFirestore(app);
+    let state = { config: {}, matches: {}, groups: {}, players: {}, tickets: [], pId: null, showFullHistory: false, currentBetMatchId: null, currentAdminMatchId: null, currentAdminSide: 'home', tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
 
     const ADMIN_UID = "ic18MLTfKyfu9uRt1Q2A8jxrbw73";
 
@@ -1160,17 +1242,212 @@
 
     window.logout = () => signOut(auth);
 
+    let unsubscribeTickets = null;
+
     onAuthStateChanged(auth, (user) => {
         if (user) {
             state.pId = user.uid;
             document.getElementById('authContainer').style.display = 'none';
             document.getElementById('appUI').style.display = 'block';
+            
+            // FIRESTORE LISTENERY PRO TIKETY
+            if (unsubscribeTickets) unsubscribeTickets();
+            
+            const ticketsRef = collection(fs, "tickets");
+            let tQuery;
+            if (user.uid === ADMIN_UID) {
+                tQuery = query(ticketsRef, orderBy("createdAt", "desc"));
+            } else {
+                tQuery = query(ticketsRef, where("userId", "==", user.uid));
+            }
+            
+            unsubscribeTickets = onSnapshot(tQuery, (snapshot) => {
+                state.tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUserTickets();
+                if (user.uid === ADMIN_UID) {
+                    renderAdminTickets();
+                }
+            }, (error) => {
+                console.error("Firestore tickets subscription error:", error);
+            });
+
         } else {
             state.pId = null;
+            if (unsubscribeTickets) unsubscribeTickets();
             document.getElementById('authContainer').style.display = 'flex';
             document.getElementById('appUI').style.display = 'none';
         }
     });
+
+    // --- FIRESTORE TICKET SYSTEM ---
+    window.openTicketModal = () => {
+        renderUserTickets();
+        document.getElementById('ticketModalOverlay').style.display = 'flex';
+    };
+
+    window.createTicket = async () => {
+        const subject = document.getElementById('ticketSubjectInput').value.trim();
+        const message = document.getElementById('ticketMessageInput').value.trim();
+        
+        if (!subject || !message) return alert("Vyplň předmět i zprávu!");
+        
+        const myData = state.players[state.pId] || {};
+        const userName = myData.name || "Neznámý hráč";
+
+        try {
+            await addDoc(collection(fs, "tickets"), {
+                userId: state.pId,
+                userName: userName,
+                subject: subject,
+                status: "open",
+                createdAt: Date.now(),
+                messages: [
+                    {
+                        sender: userName,
+                        senderId: state.pId,
+                        text: message,
+                        time: Date.now(),
+                        isAdmin: false
+                    }
+                ]
+            });
+            
+            document.getElementById('ticketSubjectInput').value = "";
+            document.getElementById('ticketMessageInput').value = "";
+            alert("Tiket byl úspěšně vytvořen!");
+        } catch(e) {
+            console.error("Chyba při vytváření tiketu:", e);
+            alert("Chyba při vytváření tiketu.");
+        }
+    };
+
+    window.replyTicket = async (ticketId, isAdmin) => {
+        const inputId = isAdmin ? `adminReplyInput-${ticketId}` : `userReplyInput-${ticketId}`;
+        const inputEl = document.getElementById(inputId);
+        const text = inputEl ? inputEl.value.trim() : "";
+
+        if (!text) return alert("Zadej text odpovědi!");
+
+        const myData = state.players[state.pId] || {};
+        const userName = isAdmin ? "Podpora (Admin)" : (myData.name || "Hráč");
+
+        try {
+            const ticketRef = doc(fs, "tickets", ticketId);
+            await updateDoc(ticketRef, {
+                messages: arrayUnion({
+                    sender: userName,
+                    senderId: state.pId,
+                    text: text,
+                    time: Date.now(),
+                    isAdmin: isAdmin
+                })
+            });
+            inputEl.value = "";
+        } catch(e) {
+            console.error("Chyba při odpovídání:", e);
+            alert("Nepodařilo se odeslat odpověď.");
+        }
+    };
+
+    window.toggleTicketStatus = async (ticketId, currentStatus) => {
+        const newStatus = currentStatus === "open" ? "closed" : "open";
+        try {
+            const ticketRef = doc(fs, "tickets", ticketId);
+            await updateDoc(ticketRef, { status: newStatus });
+        } catch(e) {
+            console.error("Chyba při změně stavu tiketu:", e);
+        }
+    };
+
+    function renderUserTickets() {
+        const container = document.getElementById('userTicketsList');
+        if (!container) return;
+        
+        const myTickets = state.tickets.filter(t => t.userId === state.pId).sort((a,b) => b.createdAt - a.createdAt);
+        if (myTickets.length === 0) {
+            container.innerHTML = `<p style="color:#94a3b8; font-size:12px;">Zatím nemáš žádné tikety.</p>`;
+            return;
+        }
+
+        let html = "";
+        myTickets.forEach(t => {
+            const statusClass = t.status === "open" ? "status-open" : "status-closed";
+            const statusText = t.status === "open" ? "Otevřený" : "Uzavřený";
+
+            html += `<div class="ticket-item">
+                <div class="ticket-header">
+                    <span class="ticket-subject">${t.subject}</span>
+                    <span class="ticket-status ${statusClass}">${statusText}</span>
+                </div>
+                <div>`;
+            
+            (t.messages || []).forEach(m => {
+                const dateStr = new Date(m.time).toLocaleString('cs-CZ', { day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit' });
+                html += `<div class="ticket-msg ${m.isAdmin ? 'admin-reply' : ''}">
+                    <div class="ticket-msg-meta"><b>${m.sender}</b> • ${dateStr}</div>
+                    <div>${m.text}</div>
+                </div>`;
+            });
+
+            if (t.status === "open") {
+                html += `<div style="display:flex; gap:5px; margin-top:8px;">
+                    <input type="text" id="userReplyInput-${t.id}" placeholder="Odpovědět na tiket..." style="font-size:11px; padding:4px;">
+                    <button class="btn-success btn-small" onclick="window.replyTicket('${t.id}', false)">Odeslat</button>
+                </div>`;
+            }
+
+            html += `</div></div>`;
+        });
+        container.innerHTML = html;
+    }
+
+    function renderAdminTickets() {
+        const container = document.getElementById('adminTicketsList');
+        if (!container) return;
+
+        const allTickets = [...state.tickets].sort((a,b) => b.createdAt - a.createdAt);
+        if (allTickets.length === 0) {
+            container.innerHTML = `<p style="color:#94a3b8; font-size:12px;">Žádné tikety k zobrazení.</p>`;
+            return;
+        }
+
+        let html = "";
+        allTickets.forEach(t => {
+            const statusClass = t.status === "open" ? "status-open" : "status-closed";
+            const statusText = t.status === "open" ? "Otevřený" : "Uzavřený";
+
+            html += `<div class="ticket-item">
+                <div class="ticket-header">
+                    <div>
+                        <span class="ticket-subject">${t.subject}</span> 
+                        <span style="font-size:11px; color:#94a3b8;">(${t.userName || 'Uživatel'})</span>
+                    </div>
+                    <div>
+                        <span class="ticket-status ${statusClass}">${statusText}</span>
+                        <button class="btn-alt btn-small" style="margin-left:5px;" onclick="window.toggleTicketStatus('${t.id}', '${t.status}')">
+                            ${t.status === 'open' ? 'Uzavřít' : 'Otevřít'}
+                        </button>
+                    </div>
+                </div>
+                <div>`;
+            
+            (t.messages || []).forEach(m => {
+                const dateStr = new Date(m.time).toLocaleString('cs-CZ', { day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit' });
+                html += `<div class="ticket-msg ${m.isAdmin ? 'admin-reply' : ''}">
+                    <div class="ticket-msg-meta"><b>${m.sender}</b> • ${dateStr}</div>
+                    <div>${m.text}</div>
+                </div>`;
+            });
+
+            html += `<div style="display:flex; gap:5px; margin-top:8px;">
+                <input type="text" id="adminReplyInput-${t.id}" placeholder="Napsat odpověď jako Admin..." style="font-size:11px; padding:4px;">
+                <button class="btn-success btn-small" onclick="window.replyTicket('${t.id}', true)">Odpovědět</button>
+            </div>`;
+
+            html += `</div></div>`;
+        });
+        container.innerHTML = html;
+    }
 
     window.addEventListener('load', () => {
         setTimeout(() => {
@@ -1213,6 +1490,7 @@
     window.adminLogin = () => { 
         if (state.pId === ADMIN_UID) {
             document.getElementById("adminPanel").style.display = "block";
+            renderAdminTickets();
         } else {
             alert("Nemáš administrátorská oprávnění.");
         }
@@ -1829,7 +2107,7 @@
         update(ref(db, `tips/${pId}`), { balance: curB - totalNewStake });
         set(ref(db, `tips/${pId}/bets/${mId}`), newBets);
         
-        document.getElementById('betSelectorOverlay').style.display = 'flex';
+        document.getElementById('betSelectorOverlay').style.display = 'none';
     };
 
     onValue(ref(db, "/"), snap => {
@@ -2017,263 +2295,282 @@
             </div>`}
             <div style="margin-top:8px; display:flex; gap:5px;">
                 <button class="${m.status==='Konec'?'btn-gold':'btn-disabled'}" onclick="window.evaluateMatch('${id}')">VYHODNOTIT</button>
-                <button class="btn-alt" style="padding: 4px 8px; font-size: 11px;" onclick="window.duplicateMatch('${id}')">Klonovat</button>
-                <button class="btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="window.deleteMatch('${id}')">Smazat</button>
+                <button class="btn-alt" onclick="window.updateMatch('${id}','closed',${!m.closed})">${m.closed?'Otevřít':'Zavřít'}</button>
+                <button class="btn-alt" onclick="window.duplicateMatch('${id}')">Duplikovat</button>
+                <button class="btn-danger" onclick="window.deleteMatch('${id}')">X</button>
             </div>
         </div>`;
     }
 
+    // --- LOGIKA PRO LOCALSTORAGE (Otevřené sekce) ---
+    window.toggleSectionStorage = (key, id) => {
+        let storage = JSON.parse(localStorage.getItem(key) || "[]");
+        if (storage.includes(id)) {
+            storage = storage.filter(x => x !== id);
+        } else {
+            storage.push(id);
+        }
+        localStorage.setItem(key, JSON.stringify(storage));
+    };
+
+    window.isSectionOpen = (key, id) => {
+        const storage = JSON.parse(localStorage.getItem(key) || "[]");
+        return storage.includes(id);
+    };
+
     function renderMain() {
-        const p = state.players[state.pId];
-        if (p) {
-            document.getElementById('displayName').innerText = p.name || "Hráč";
-            document.getElementById('myBalance').innerText = p.balance || 0;
-            
-            const groupedHist = groupHistoryByMatch(p.history);
-            const limit = state.showFullHistory ? null : 3;
-            document.getElementById('myHistory').innerHTML = generateHistoryHtml(groupedHist, limit);
-            
-            const adminBtn = document.querySelector('button[onclick="window.adminLogin()"]');
-            if (adminBtn) adminBtn.style.display = state.pId === ADMIN_UID ? 'inline-block' : 'none';
+        if (!state.pId) return;
+        const myData = state.players[state.pId] || { balance: 2500, name: "Hráč" };
+        document.getElementById("myBalance").innerText = myData.balance !== undefined ? myData.balance : 2500;
+        document.getElementById("displayName").innerText = myData.name || "Hráč";
+        
+        const adminBtn = document.querySelector('button[onclick="window.adminLogin()"]');
+        if (adminBtn) {
+            adminBtn.style.display = (state.pId === ADMIN_UID) ? "block" : "none";
         }
 
-        const mCont = document.getElementById("matchesContainer"); 
-        mCont.innerHTML = "";
+        const grouped = groupHistoryByMatch(myData.history);
+        const limit = state.showFullHistory ? null : 3;
+        document.getElementById("myHistory").innerHTML = generateHistoryHtml(grouped, limit);
+        document.getElementById("histToggle").style.display = grouped.length > 3 ? "inline-block" : "none";
 
+        const container = document.getElementById("matchesContainer"); container.innerHTML = "";
+        const sortedGroups = Object.keys(state.groups).sort((a,b) => state.groups[a].order - state.groups[b].order);
+        
         const pinnedIds = JSON.parse(localStorage.getItem('pinnedMatches') || "[]");
         const hiddenLiveIds = JSON.parse(localStorage.getItem('hiddenLiveMatches') || "[]");
 
-        const sortedGroups = Object.keys(state.groups).sort((a,b) => state.groups[a].order - state.groups[b].order);
-        const groupList = [...sortedGroups, "none"];
-
-        groupList.forEach(gId => {
+        [...sortedGroups, "none"].forEach(gId => {
             const gMatchesRaw = Object.keys(state.matches).filter(mid => state.matches[mid].group === gId);
-            if (gMatchesRaw.length === 0) return;
-
-            const gMatches = sortMatchesByDate(gMatchesRaw);
-            const g = state.groups[gId] || { name: "Ostatní / Bez kategorie" };
+            if(gMatchesRaw.length === 0) return;
             
-            const isFinished = gMatches.every(mid => state.matches[mid].status === "Dohráno");
+            const gMatches = sortMatchesByDate(gMatchesRaw);
+            const groupData = state.groups[gId] || { locked: false };
+            const isLocked = groupData.locked;
+            const allFinished = gMatches.every(mId => state.matches[mId].status === 'Dohráno');
+            
+            // Kontrola z localStorage
+            const isManuallyOpen = window.isSectionOpen('openedGroups', gId);
 
-            let html = `<div class="group-container">
-                <div class="group-header ${isFinished ? 'finished' : ''}" onclick="this.nextElementSibling.classList.toggle('collapsed')">
-                    <span>${g.name}</span>
-                    <span style="font-size:12px; color:#94a3b8">${isFinished ? 'Dokončeno ▲' : 'Zobrazit/Skrýt ▲'}</span>
-                </div>
-                <div class="group-content ${isFinished ? 'collapsed' : ''}">`;
+            const barColor = isLocked ? "#ef4444" : "#3b82f6";
+            const pointerStyle = isLocked ? "pointer-events: none; opacity: 0.9;" : "cursor: pointer;";
+            const lockIcon = isLocked ? "🔒" : (isManuallyOpen ? "▲" : "▼");
 
-            gMatches.forEach(mid => {
-                const m = state.matches[mid];
-                const isPinned = pinnedIds.includes(mid);
-                const isHiddenLive = hiddenLiveIds.includes(mid);
-                const isLiveOrFinished = m.status !== "Plánováno";
+            let gHtml = `
+                <div class="group-container">
+                    <div class="group-header ${allFinished ? 'finished' : ''}" 
+                         style="border-left-color: ${barColor}; ${pointerStyle}"
+                         onclick="${isLocked ? '' : "window.toggleSectionStorage('openedGroups', '"+gId+"'); this.nextElementSibling.classList.toggle('collapsed'); renderMain();" }">
+                        ${gId === "none" ? "Ostatní" : state.groups[gId].name} 
+                        <span>${lockIcon}</span>
+                    </div>
+                    <div class="group-content ${isManuallyOpen || isLocked ? '' : 'collapsed'}">`;
+            
+            gMatches.forEach(mId => {
+                const m = state.matches[mId]; 
+                const myB = state.players[state.pId]?.bets?.[mId]; 
+                const isF = m.status === 'Dohráno';
+                const isLive = m.status !== "Plánováno" && !isF;
                 
-                let myBetHtml = "";
-                const b = p?.bets?.[mid];
-                if (b) {
-                    let bText = [];
-                    if(b.result) bText.push(`Výsledek: <b>${b.result.tip}</b> (${b.result.stake} TC)`);
-                    if(b.score) bText.push(`Skóre: <b>${b.score.tip}</b> (${b.score.stake} TC)`);
-                    if(b.goals) bText.push(`Góly: <b>${b.goals.tip}</b> (${b.goals.stake} TC)`);
-                    if(b.scorer) bText.push(`1. Střelec: <b>${b.scorer.tip}</b> (${b.scorer.stake} TC)`);
-                    if(b.scorer2) bText.push(`2. Střelec: <b>${b.scorer2.tip}</b> (${b.scorer2.stake} TC)`);
-                    if(b.scorer3) bText.push(`3. Střelec: <b>${b.scorer3.tip}</b> (${b.scorer3.stake} TC)`);
-                    
-                    myBetHtml = `<div style="font-size:11px; color:#6ee7b7; margin-top:8px; background:rgba(110,231,183,0.1); padding:5px; border-radius:5px; text-align:center;">
-                        Moje sázky:<br>${bText.join("<br>")}
-                    </div>`;
-                }
+                const isPinned = pinnedIds.includes(mId) || ((isLive || m.status === 'Konec') && !hiddenLiveIds.includes(mId));
+                const isDisabled = m.status !== "Plánováno" || m.closed === true || isLocked;
+                const isLineupLocked = m.lineups_locked === true;
 
-                // ANIMACE GOAL / START / EVAL
-                let animOverlay = "";
-                
-                // Detekce nového gólu z timeline
-                if (m.timeline && m.timeline.length > 0) {
-                    const lastTimelineItem = m.timeline[m.timeline.length - 1];
-                    if (lastTimelineItem.type === "goal") {
-                        const goalKey = `${mid}_${lastTimelineItem.time}`;
-                        const now = Date.now();
-                        
-                        if (!state.activeGoalAnimations.has(goalKey) && (now - lastTimelineItem.time < 12000)) {
-                            state.activeGoalAnimations.set(goalKey, lastTimelineItem);
-                            setTimeout(() => {
-                                state.activeGoalAnimations.delete(goalKey);
-                                renderMain();
-                            }, 12000);
+                // Kontrola otevřeného průběhu zápasu
+                const isTimelineOpen = window.isSectionOpen('openedTimelines', mId);
+
+                let scoringTeam = null;
+                if (state.lastScores[mId] && state.lastScores[mId] !== m.score && m.status !== "Plánováno") {
+                    const [oldH, oldA] = state.lastScores[mId].split(":").map(Number);
+                    const [newH, newA] = m.score.split(":").map(Number);
+                    if (newH > oldH) scoringTeam = "home";
+                    else if (newA > oldA) scoringTeam = "away";
+                    if (scoringTeam) {
+                        if (!state.activeGoalAnimations.has(mId)) {
+                            state.activeGoalAnimations.set(mId, {
+                                logo: scoringTeam === "home" ? m.homeLogo : m.awayLogo,
+                                scorer: m.lastScorer || "S. Neuveden"
+                            });
+                            setTimeout(() => { state.activeGoalAnimations.delete(mId); renderMain(); }, 5000);
                         }
                     }
                 }
+                state.lastScores[mId] = m.score;
 
-                // Render Goal Overlay pokud je animace aktivní
-                let activeGoal = null;
-                if (m.timeline) {
-                    for (let t of m.timeline) {
-                        if (t.type === "goal" && state.activeGoalAnimations.has(`${mid}_${t.time}`)) {
-                            activeGoal = t;
-                            break;
-                        }
-                    }
+                let btnTxt = "Vsadit";
+                if(myB) {
+                    let c = 0; if(myB.result) c++; if(myB.score) c++; if(myB.goals) c++; if(myB.scorer) c++; if(myB.scorer2) c++; if(myB.scorer3) c++;
+                    btnTxt = `Vsazeno (${c}x)`;
                 }
 
-                if (activeGoal) {
-                    const logoUrl = activeGoal.team === "home" ? m.homeLogo : m.awayLogo;
-                    const teamName = activeGoal.team === "home" ? m.home : m.away;
-                    animOverlay = `
-                        <div class="goal-overlay">
-                            ${logoUrl ? `<img src="${logoUrl}" class="goal-logo">` : ''}
-                            <div class="goal-text-container">
-                                <div class="goal-text-flash">GOOOOL!</div>
-                                <div style="font-size:14px; color:#fff; margin-top:5px;">${teamName}</div>
-                                <div style="font-size:16px; color:#6ee7b7; font-weight:bold;">${activeGoal.scorer} (${activeGoal.minute})</div>
-                                ${activeGoal.extraInfo ? `<div style="font-size:11px; color:#94a3b8;">${activeGoal.extraInfo}</div>` : ''}
-                                <div style="font-size:22px; color:#fff; margin-top:5px;">${activeGoal.score}</div>
-                            </div>
-                        </div>`;
-                } else if (m.startAnim && (Date.now() - m.startAnim < 7000)) {
-                    animOverlay = `
+                const hLogoHtml = m.homeLogo ? `<img src="${m.homeLogo}" class="team-logo">` : "";
+                const aLogoHtml = m.awayLogo ? `<img src="${m.awayLogo}" class="team-logo">` : "";
+
+                let currentOverlay = "";
+                const now = Date.now();
+
+                if (m.startAnim && (now - m.startAnim < 6000)) {
+                    currentOverlay = `
                         <div class="start-overlay">
-                            ${m.homeLogo ? `<img src="${m.homeLogo}" class="anim-home-only">` : ''}
+                            <img src="${m.homeLogo}" class="anim-home-only">
                             <div class="anim-final-stage">
-                                <div style="display:flex; align-items:center; justify-content:center;">
-                                    ${m.homeLogo ? `<img src="${m.homeLogo}" class="anim-home">` : ''}
-                                    <span class="vs-text-anim">VS</span>
-                                    ${m.awayLogo ? `<img src="${m.awayLogo}" class="anim-away">` : ''}
+                                <div style="display: flex; align-items: center; justify-content: center;">
+                                    <img src="${m.homeLogo}" class="anim-home">
+                                    <div class="vs-text-anim">VS</div>
+                                    <img src="${m.awayLogo}" class="anim-away">
                                 </div>
                                 <div class="start-text-anim">ZÁPAS ZAČÍNÁ!</div>
                             </div>
                         </div>`;
-                } else if (m.endAnim && (Date.now() - m.endAnim < 7000)) {
-                    animOverlay = `
+                    setTimeout(renderMain, 6000 - (now - m.startAnim));
+                } 
+                else if (m.endAnim && (now - m.endAnim < 5000)) {
+                    currentOverlay = `
                         <div class="evaluate-overlay">
-                            <div style="display:flex; align-items:center; justify-content:center;">
-                                ${m.homeLogo ? `<img src="${m.homeLogo}" class="eval-logo">` : ''}
-                                <span class="eval-score">${m.score}</span>
-                                ${m.awayLogo ? `<img src="${m.awayLogo}" class="eval-logo">` : ''}
+                            <div style="display: flex; align-items: center; justify-content: center;">
+                                <img src="${m.homeLogo}" class="eval-logo">
+                                <div class="eval-score">${m.score}</div>
+                                <img src="${m.awayLogo}" class="eval-logo">
                             </div>
-                            <div class="eval-end-text">KONEC ZÁPASU</div>
+                            <div class="eval-end-text">ZÁPAS SKONČIL</div>
+                        </div>`;
+                    setTimeout(renderMain, 5000 - (now - m.endAnim));
+                }
+                else if (state.activeGoalAnimations.has(mId)) {
+                    const animData = state.activeGoalAnimations.get(mId);
+                    currentOverlay = `
+                        <div class="goal-overlay">
+                            <img src="${animData.logo}" class="goal-logo">
+                            <div class="goal-text-container">
+                                <div class="goal-text-flash" style="margin-bottom: 5px;">GÓÓÓL!</div>
+                                <div style="font-size: 18px; color: #fff; text-transform: uppercase;">${animData.scorer || ''}</div>
+                            </div>
                         </div>`;
                 }
 
-                // PRŮBĚH ZÁPASU TIMELINE HTML
                 let timelineRows = "";
-                if (m.timeline && m.timeline.length > 0) {
-                    const sortedT = [...m.timeline].reverse();
-                    sortedT.forEach(t => {
+                if (m.timeline) {
+                    m.timeline.forEach(t => {
                         if (t.type === "period") {
                             timelineRows += `
-                                <tr style="background:rgba(59,130,246,0.15); font-weight:bold; text-align:center;">
-                                    <td colspan="3" style="color:#60a5fa; padding:4px;">--- ${t.text} ---</td>
+                                <tr>
+                                    <td colspan="3" style="text-align:center; background: rgba(59, 130, 246, 0.1); color: #3b82f6; font-weight: bold; font-size: 11px; padding: 5px 8px;">
+                                        --- ${t.text.toUpperCase()} ---
+                                    </td>
                                 </tr>`;
                         } else if (t.type === "goal") {
-                            const logo = t.team === "home" ? m.homeLogo : m.awayLogo;
+                            const tLogo = t.team === "home" ? m.homeLogo : m.awayLogo;
                             timelineRows += `
                                 <tr>
-                                    <td style="width:40px; font-weight:bold; color:#fbbf24;">${t.minute}</td>
-                                    <td>
-                                        <div style="display:flex; align-items:center; gap:6px;">
-                                            ${logo ? `<img src="${logo}" class="timeline-logo">` : ''}
-                                            <span><b>GÓL!</b> ${t.scorer} ${t.extraInfo ? `<small style="color:#94a3b8">(${t.extraInfo})</small>` : ''}</span>
-                                        </div>
+                                    <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
+                                    <td style="text-align:left">
+                                        <b style="font-size:14px;">${t.scorer} (${t.minute})</b>
+                                        ${t.extraInfo ? `<div style="font-size:11px; color:#6ee7b7; margin-top:2px;">${t.extraInfo}</div>` : ''}
                                     </td>
-                                    <td style="text-align:right; font-weight:bold; color:#6ee7b7;">${t.score}</td>
+                                    <td style="text-align:right; color:#3b82f6; font-weight:bold">(${t.score})</td>
                                 </tr>`;
                         } else if (t.type === "penalty") {
-                            const logo = t.team === "home" ? m.homeLogo : m.awayLogo;
+                            const tLogo = t.team === "home" ? m.homeLogo : m.awayLogo;
                             timelineRows += `
-                                <tr>
-                                    <td style="width:40px; color:#ef4444; font-weight:bold;">${t.minute}</td>
-                                    <td colspan="2">
-                                        <div style="display:flex; align-items:center; gap:6px;">
-                                            ${logo ? `<img src="${logo}" class="timeline-logo">` : ''}
-                                            <span style="color:#cbd5e1;"><b>Trest:</b> ${t.player} - ${t.penaltyType} (${t.duration})</span>
-                                        </div>
+                                <tr style="background: rgba(239, 68, 68, 0.05);">
+                                    <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
+                                    <td style="text-align:left">
+                                        <div style="font-weight:bold; font-size:12px;">${t.player} (${t.minute})</div>
+                                        <div style="font-size:10px; color:#94a3b8;">${t.penaltyType}</div>
+                                    </td>
+                                    <td style="text-align:right; color:#ef4444; font-weight:bold; font-size:11px;">
+                                        ⏱️ ${t.duration}
                                     </td>
                                 </tr>`;
                         } else if (t.type === "shootout") {
-                            const logo = t.team === "home" ? m.homeLogo : m.awayLogo;
-                            const icon = t.converted ? "✅ Proměnil" : "❌ Neproměnil";
-                            const color = t.converted ? "#6ee7b7" : "#f87171";
+                            const tLogo = t.team === "home" ? m.homeLogo : m.awayLogo;
                             timelineRows += `
                                 <tr>
-                                    <td style="width:40px; color:#3b82f6; font-weight:bold;">SN</td>
-                                    <td colspan="2">
-                                        <div style="display:flex; align-items:center; gap:6px;">
-                                            ${logo ? `<img src="${logo}" class="timeline-logo">` : ''}
-                                            <span>${t.player} - <b style="color:${color}">${icon}</b></span>
-                                        </div>
-                                    </td>
+                                    <td style="width:30px"><img src="${tLogo}" class="timeline-logo"></td>
+                                    <td style="text-align:left"><b>${t.player}</b></td>
+                                    <td style="text-align:right">${t.converted ? '✅' : '❌'}</td>
                                 </tr>`;
                         }
                     });
                 }
 
-                const pinActive = (isLiveOrFinished && isHiddenLive) || (!isLiveOrFinished && isPinned);
-                const pinIcon = isLiveOrFinished ? (isHiddenLive ? '👁️‍🗨️' : '👁️') : '📌';
+                let subScoreHtml = "";
+                if (m.scoreFullTime) {
+                    subScoreHtml = `<div style="font-size:11px; color:#94a3b8; margin-top:-5px; margin-bottom:5px;">(v zákl. hrací době ${m.scoreFullTime})</div>`;
+                }
+                
+                let shootoutIndicator = "";
+                if (m.shootoutScore && m.status === "Nájezdy") {
+                    shootoutIndicator = `<div style="font-size:13px; color:#6ee7b7; font-weight:bold;">Nájezdy: ${m.shootoutScore}</div>`;
+                }
 
-                html += `
-                <div class="match ${isPinned ? 'pinned' : ''}">
-                    ${animOverlay}
-                    <div class="match-header">
-                        <div>
-                            <span class="pin-btn ${pinActive ? 'active' : ''}" onclick="window.togglePin('${mid}', event)">${pinIcon}</span>
-                            <span>${m.date}</span>
+                let displayScore = m.score;
+                if (isF) {
+                    if (m.shootoutScore) displayScore += "n";
+                    else if (m.scoreFullTime) displayScore += "p";
+                }
+
+                gHtml += `<div class="match ${isPinned ? 'pinned' : ''}">
+                        ${currentOverlay}
+                        <div class="match-header"><div><span class="pin-btn ${isPinned ? 'active' : ''}" onclick="window.togglePin('${mId}', event)">📌</span><span>${m.date}</span></div><span class="status-badge">${m.status}</span></div>
+                        
+                        ${m.description ? `<div style="font-size:13px; color:#94a3b8; margin: 5px 0 10px 0; font-style: italic; text-align: center;">${m.description}</div>` : ""}
+
+                        <div class="teams" style="${currentOverlay !== "" ? 'opacity:0' : 'opacity:1'}">
+                            ${hLogoHtml} ${m.home} 
+                            ${m.status !== 'Plánováno' && !isF ? `<span class="live-score">${m.score}</span>` : (isF ? `<span class="live-score" style="background:#059669">${displayScore}</span>` : 'vs')} 
+                            ${m.away} ${aLogoHtml}
                         </div>
-                        <span class="status-badge">${m.status}</span>
-                    </div>
-
-                    ${m.description ? `<div style="font-size:11px; color:#fbbf24; margin-bottom:8px; font-style:italic; text-align:center;">${m.description}</div>` : ''}
-
-                    <div class="teams">
-                        <div style="flex:1; text-align:right; display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-                            <span>${m.home}</span>
-                            ${m.homeLogo ? `<img src="${m.homeLogo}" class="team-logo">` : ''}
+                        
+                        ${subScoreHtml}
+                        ${shootoutIndicator}
+                        
+                        <div style="display:flex; gap:5px; margin-bottom:5px;">
+                            <button onclick="window.placeBet('${mId}')" ${isDisabled ? 'disabled' : ''} style="flex:3">${isDisabled ? (isLocked ? 'Zamčeno' : 'Zavřeno') : btnTxt}</button>
+                            ${!isLineupLocked ? `<button class="btn-alt" style="flex:1; font-size:11px; border:1px solid #3b82f6" onclick="window.openLineupModal('${mId}', false)">Sestavy</button>` : ''}
                         </div>
-                        <span class="${isLiveOrFinished ? 'live-score' : ''}">${m.score}</span>
-                        <div style="flex:1; text-align:left; display:flex; align-items:center; justify-content:flex-start; gap:6px;">
-                            ${m.awayLogo ? `<img src="${m.awayLogo}" class="team-logo">` : ''}
-                            <span>${m.away}</span>
-                        </div>
-                    </div>
-
-                    ${m.shootoutScore ? `<div style="font-size:12px; color:#60a5fa; font-weight:bold; margin-bottom:5px;">Nájezdy: ${m.shootoutScore}</div>` : ''}
-
-                    <div style="display:flex; justify-content:center; gap:10px; margin-top:10px;">
-                        ${!m.closed && m.status === 'Plánováno' ? 
-                            `<button onclick="window.placeBet('${mid}')" class="btn-success" style="font-size:12px; padding:6px 12px;">VSADIT SI</button>` : ''
-                        }
-                        <button onclick="window.openLineupModal('${mid}', false)" class="btn-alt" style="font-size:12px; padding:6px 12px;">Sestavy</button>
-                        ${timelineRows !== "" ? `<button onclick="const t = this.parentElement.nextElementSibling; t.style.display = t.style.display === 'table' ? 'none' : 'table';" class="btn-alt" style="font-size:12px; padding:6px 12px;">Průběh</button>` : ''}
-                    </div>
-
-                    ${myBetHtml}
-
-                    <table class="match-timeline-table">
-                        <tbody>${timelineRows}</tbody>
-                    </table>
-                </div>`;
+                        
+                        ${m.status !== "Plánováno" ? `
+                            <button class="btn-alt" style="width:100%; margin-top:5px; font-size:11px; padding:5px" 
+                                onclick="window.toggleSectionStorage('openedTimelines', '${mId}'); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'table' ? 'none' : 'table'">Průběh zápasu</button>
+                            <table class="match-timeline-table" style="display: ${isTimelineOpen ? 'table' : 'none'}">
+                                ${timelineRows || '<tr><td colspan="3" style="color:#94a3b8; padding:10px">Zatím žádné události</td></tr>'}
+                            </table>
+                        ` : ''}
+                    </div>`;
             });
-
-            html += `</div></div>`;
-            mCont.innerHTML += html;
+            container.innerHTML += gHtml + "</div></div>";
         });
 
-        // ŽEBŘÍČEK
-        const pTable = document.getElementById("playersTable");
-        pTable.innerHTML = `<tr><th>#</th><th>Hráč</th><th>Konto</th></tr>`;
-        
-        const sortedPlayers = Object.keys(state.players)
-            .map(id => ({ id, ...state.players[id] }))
-            .sort((a,b) => (b.balance || 0) - (a.balance || 0));
-
-        sortedPlayers.forEach((p, idx) => {
-            const isMe = p.id === state.pId;
-            pTable.innerHTML += `
-                <tr class="${isMe ? 'my-row' : ''}">
-                    <td><b>${idx + 1}.</b></td>
-                    <td><span class="player-link" onclick="window.showPlayerHistory('${p.id}')">${p.name || 'Borec'}</span></td>
-                    <td><b>${p.balance || 0} TC</b></td>
-                </tr>`;
+        const table = document.getElementById("playersTable");
+        let players = Object.keys(state.players).sort((a,b) => (state.players[b].balance||0) - (state.players[a].balance||0));
+        let hHtml = `<tr><th>#</th><th>Hráč</th><th>TC</th><th>Sázky</th></tr>`;
+        players.forEach((pid, idx) => {
+            const p = state.players[pid]; let bH = "";
+            if(p.bets) { 
+                Object.keys(p.bets).forEach(mid => { 
+                    const m = state.matches[mid];
+                    if(m && m.status !== "Dohráno") {
+                        const b = p.bets[mid];
+                        let bParts = [];
+                        if(b.result) bParts.push(b.result.tip); 
+                        if(b.score) bParts.push(b.score.tip); 
+                        if(b.goals) bParts.push(b.goals.tip); 
+                        if(b.scorer) bParts.push(b.scorer.tip);
+                        if(b.scorer2) bParts.push(b.scorer2.tip);
+                        if(b.scorer3) bParts.push(b.scorer3.tip);
+                        bH += `<span class="bet-info">${m.home.slice(0,3)}-${m.away.slice(0,3)}: ${bParts.join(", ")}</span>`;
+                    }
+                }); 
+            }
+            hHtml += `<tr class="${pid===state.pId?'my-row':''}">
+                <td>${idx+1}.</td>
+                <td><span class="player-link" onclick="window.showPlayerHistory('${pid}')">${p.name||'Borec'}</b></td>
+                <td><b>${p.balance||0}</b></td>
+                <td>${bH}</td>
+            </tr>`;
         });
+        table.innerHTML = hHtml;
     }
 </script>
 </body>
