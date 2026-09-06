@@ -647,7 +647,7 @@
         }
 
         /* SÁZENÍ */
-        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay, #shootoutModalOverlay, #lineupModalOverlay, #goalModalOverlay, #ticketModalOverlay { 
+        #betSelectorOverlay, #playerHistoryOverlay, #penaltyModalOverlay, #shootoutModalOverlay, #lineupModalOverlay, #goalModalOverlay { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(0,0,0,0.85); z-index: 10000; display: none; 
             align-items: center; justify-content: center; backdrop-filter: blur(5px);
@@ -822,56 +822,6 @@
                 flex-direction: column;
             }
         }
-
-        /* TICKET SYSTEM STYLY */
-        .ticket-item {
-            background: #1e293b;
-            border: 1px solid #3b82f6;
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 12px;
-            text-align: left;
-        }
-        .ticket-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 6px;
-            margin-bottom: 8px;
-            font-size: 12px;
-        }
-        .ticket-subject {
-            font-weight: bold;
-            color: #3b82f6;
-            font-size: 14px;
-        }
-        .ticket-status {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        .status-open { background: #059669; color: white; }
-        .status-closed { background: #475569; color: white; }
-        .ticket-msg {
-            background: rgba(15, 23, 42, 0.5);
-            padding: 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            margin: 4px 0;
-            border-left: 3px solid #3b82f6;
-        }
-        .ticket-msg.admin-reply {
-            border-left-color: #fbbf24;
-            background: rgba(251, 191, 36, 0.1);
-        }
-        .ticket-msg-meta {
-            font-size: 10px;
-            color: #94a3b8;
-            margin-bottom: 2px;
-        }
     </style>
 </head>
 <body>
@@ -961,26 +911,6 @@
                 <button onclick="window.addLineupFormation()" class="btn-success" style="width:100%; margin-bottom:10px;">+ Přidat formaci</button>
             </div>
             <button onclick="document.getElementById('lineupModalOverlay').style.display='none'" class="btn-alt" style="width:100%;">Zavřít</button>
-        </div>
-    </div>
-
-    <div id="ticketModalOverlay">
-        <div class="auth-box" style="max-width: 500px; width: 95%;">
-            <h3 style="color:#3b82f6; margin:0 0 15px 0;">Podpora / Tikety</h3>
-            
-            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: left;">
-                <h4 style="margin: 0 0 8px 0; color: #fbbf24; font-size: 14px;">Vytvořit nový tiket</h4>
-                <input type="text" id="ticketSubjectInput" placeholder="Předmět (např. Chyba v vyhodnocení)">
-                <textarea id="ticketMessageInput" placeholder="Detailní popis problému..." style="width:100%; height:70px; background:#0f172a; color:white; border:1px solid #334155; border-radius:6px; padding:8px; box-sizing:border-box; margin-top:5px; font-family:inherit; font-size:12px;"></textarea>
-                <button onclick="window.createTicket()" class="btn-success" style="width:100%; margin-top:8px;">Odeslat tiket</button>
-            </div>
-
-            <h4 style="margin: 10px 0 5px 0; color: #3b82f6; text-align: left; font-size: 14px;">Moje tikety</h4>
-            <div id="userTicketsList" style="max-height: 250px; overflow-y: auto;">
-                Načítám tikety...
-            </div>
-
-            <button onclick="document.getElementById('ticketModalOverlay').style.display='none'" class="btn-alt" style="width:100%; margin-top:15px;">Zavřít</button>
         </div>
     </div>
 
@@ -1077,10 +1007,6 @@
             
             <div id="myHistory"></div>
             <div id="histToggle" class="hist-toggle" onclick="window.toggleFullHistory()">Zobrazit jen 3 ▲</div>
-            
-            <div style="margin-top:12px; border-top:1px solid #334155; padding-top:10px;">
-                <button onclick="window.openTicketModal()" class="btn-alt btn-small" style="width:100%; border:1px solid #3b82f6; color:#3b82f6;">🎫 Podpora / Tikety</button>
-            </div>
         </div>
 
         <div id="mainContent">
@@ -1121,12 +1047,6 @@
                 <div id="adminMatchesList" style="margin-top:15px;"></div>
             </div>
             <div class="admin-section">
-                <h3>Správa Tiketů</h3>
-                <div id="adminTicketsList" style="max-height: 300px; overflow-y: auto;">
-                    Načítám tikety...
-                </div>
-            </div>
-            <div class="admin-section">
                 <h3>Moderace hráčů</h3>
                 <div id="adminPlayersList"></div>
             </div>
@@ -1143,9 +1063,8 @@
     // vlajky: https://flagpedia.net/data/flags/h80/cz.png
     
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, remove, update, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, query, where, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
@@ -1157,8 +1076,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth(app);
-    const fs = getFirestore(app);
-    let state = { config: {}, matches: {}, groups: {}, players: {}, tickets: [], pId: null, showFullHistory: false, currentBetMatchId: null, currentAdminMatchId: null, currentAdminSide: 'home', tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
+    let state = { config: {}, matches: {}, groups: {}, players: {}, pId: null, showFullHistory: false, currentBetMatchId: null, currentAdminMatchId: null, currentAdminSide: 'home', tempBets: { result: null, goals: null }, lastScores: {}, activeGoalAnimations: new Map() };
 
     const ADMIN_UID = "ic18MLTfKyfu9uRt1Q2A8jxrbw73";
 
@@ -1242,212 +1160,17 @@
 
     window.logout = () => signOut(auth);
 
-    let unsubscribeTickets = null;
-
     onAuthStateChanged(auth, (user) => {
         if (user) {
             state.pId = user.uid;
             document.getElementById('authContainer').style.display = 'none';
             document.getElementById('appUI').style.display = 'block';
-            
-            // FIRESTORE LISTENERY PRO TIKETY
-            if (unsubscribeTickets) unsubscribeTickets();
-            
-            const ticketsRef = collection(fs, "tickets");
-            let tQuery;
-            if (user.uid === ADMIN_UID) {
-                tQuery = query(ticketsRef, orderBy("createdAt", "desc"));
-            } else {
-                tQuery = query(ticketsRef, where("userId", "==", user.uid));
-            }
-            
-            unsubscribeTickets = onSnapshot(tQuery, (snapshot) => {
-                state.tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderUserTickets();
-                if (user.uid === ADMIN_UID) {
-                    renderAdminTickets();
-                }
-            }, (error) => {
-                console.error("Firestore tickets subscription error:", error);
-            });
-
         } else {
             state.pId = null;
-            if (unsubscribeTickets) unsubscribeTickets();
             document.getElementById('authContainer').style.display = 'flex';
             document.getElementById('appUI').style.display = 'none';
         }
     });
-
-    // --- FIRESTORE TICKET SYSTEM ---
-    window.openTicketModal = () => {
-        renderUserTickets();
-        document.getElementById('ticketModalOverlay').style.display = 'flex';
-    };
-
-    window.createTicket = async () => {
-        const subject = document.getElementById('ticketSubjectInput').value.trim();
-        const message = document.getElementById('ticketMessageInput').value.trim();
-        
-        if (!subject || !message) return alert("Vyplň předmět i zprávu!");
-        
-        const myData = state.players[state.pId] || {};
-        const userName = myData.name || "Neznámý hráč";
-
-        try {
-            await addDoc(collection(fs, "tickets"), {
-                userId: state.pId,
-                userName: userName,
-                subject: subject,
-                status: "open",
-                createdAt: Date.now(),
-                messages: [
-                    {
-                        sender: userName,
-                        senderId: state.pId,
-                        text: message,
-                        time: Date.now(),
-                        isAdmin: false
-                    }
-                ]
-            });
-            
-            document.getElementById('ticketSubjectInput').value = "";
-            document.getElementById('ticketMessageInput').value = "";
-            alert("Tiket byl úspěšně vytvořen!");
-        } catch(e) {
-            console.error("Chyba při vytváření tiketu:", e);
-            alert("Chyba při vytváření tiketu.");
-        }
-    };
-
-    window.replyTicket = async (ticketId, isAdmin) => {
-        const inputId = isAdmin ? `adminReplyInput-${ticketId}` : `userReplyInput-${ticketId}`;
-        const inputEl = document.getElementById(inputId);
-        const text = inputEl ? inputEl.value.trim() : "";
-
-        if (!text) return alert("Zadej text odpovědi!");
-
-        const myData = state.players[state.pId] || {};
-        const userName = isAdmin ? "Podpora (Admin)" : (myData.name || "Hráč");
-
-        try {
-            const ticketRef = doc(fs, "tickets", ticketId);
-            await updateDoc(ticketRef, {
-                messages: arrayUnion({
-                    sender: userName,
-                    senderId: state.pId,
-                    text: text,
-                    time: Date.now(),
-                    isAdmin: isAdmin
-                })
-            });
-            inputEl.value = "";
-        } catch(e) {
-            console.error("Chyba při odpovídání:", e);
-            alert("Nepodařilo se odeslat odpověď.");
-        }
-    };
-
-    window.toggleTicketStatus = async (ticketId, currentStatus) => {
-        const newStatus = currentStatus === "open" ? "closed" : "open";
-        try {
-            const ticketRef = doc(fs, "tickets", ticketId);
-            await updateDoc(ticketRef, { status: newStatus });
-        } catch(e) {
-            console.error("Chyba při změně stavu tiketu:", e);
-        }
-    };
-
-    function renderUserTickets() {
-        const container = document.getElementById('userTicketsList');
-        if (!container) return;
-        
-        const myTickets = state.tickets.filter(t => t.userId === state.pId).sort((a,b) => b.createdAt - a.createdAt);
-        if (myTickets.length === 0) {
-            container.innerHTML = `<p style="color:#94a3b8; font-size:12px;">Zatím nemáš žádné tikety.</p>`;
-            return;
-        }
-
-        let html = "";
-        myTickets.forEach(t => {
-            const statusClass = t.status === "open" ? "status-open" : "status-closed";
-            const statusText = t.status === "open" ? "Otevřený" : "Uzavřený";
-
-            html += `<div class="ticket-item">
-                <div class="ticket-header">
-                    <span class="ticket-subject">${t.subject}</span>
-                    <span class="ticket-status ${statusClass}">${statusText}</span>
-                </div>
-                <div>`;
-            
-            (t.messages || []).forEach(m => {
-                const dateStr = new Date(m.time).toLocaleString('cs-CZ', { day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit' });
-                html += `<div class="ticket-msg ${m.isAdmin ? 'admin-reply' : ''}">
-                    <div class="ticket-msg-meta"><b>${m.sender}</b> • ${dateStr}</div>
-                    <div>${m.text}</div>
-                </div>`;
-            });
-
-            if (t.status === "open") {
-                html += `<div style="display:flex; gap:5px; margin-top:8px;">
-                    <input type="text" id="userReplyInput-${t.id}" placeholder="Odpovědět na tiket..." style="font-size:11px; padding:4px;">
-                    <button class="btn-success btn-small" onclick="window.replyTicket('${t.id}', false)">Odeslat</button>
-                </div>`;
-            }
-
-            html += `</div></div>`;
-        });
-        container.innerHTML = html;
-    }
-
-    function renderAdminTickets() {
-        const container = document.getElementById('adminTicketsList');
-        if (!container) return;
-
-        const allTickets = [...state.tickets].sort((a,b) => b.createdAt - a.createdAt);
-        if (allTickets.length === 0) {
-            container.innerHTML = `<p style="color:#94a3b8; font-size:12px;">Žádné tikety k zobrazení.</p>`;
-            return;
-        }
-
-        let html = "";
-        allTickets.forEach(t => {
-            const statusClass = t.status === "open" ? "status-open" : "status-closed";
-            const statusText = t.status === "open" ? "Otevřený" : "Uzavřený";
-
-            html += `<div class="ticket-item">
-                <div class="ticket-header">
-                    <div>
-                        <span class="ticket-subject">${t.subject}</span> 
-                        <span style="font-size:11px; color:#94a3b8;">(${t.userName || 'Uživatel'})</span>
-                    </div>
-                    <div>
-                        <span class="ticket-status ${statusClass}">${statusText}</span>
-                        <button class="btn-alt btn-small" style="margin-left:5px;" onclick="window.toggleTicketStatus('${t.id}', '${t.status}')">
-                            ${t.status === 'open' ? 'Uzavřít' : 'Otevřít'}
-                        </button>
-                    </div>
-                </div>
-                <div>`;
-            
-            (t.messages || []).forEach(m => {
-                const dateStr = new Date(m.time).toLocaleString('cs-CZ', { day:'numeric', month:'numeric', hour:'2-digit', minute:'2-digit' });
-                html += `<div class="ticket-msg ${m.isAdmin ? 'admin-reply' : ''}">
-                    <div class="ticket-msg-meta"><b>${m.sender}</b> • ${dateStr}</div>
-                    <div>${m.text}</div>
-                </div>`;
-            });
-
-            html += `<div style="display:flex; gap:5px; margin-top:8px;">
-                <input type="text" id="adminReplyInput-${t.id}" placeholder="Napsat odpověď jako Admin..." style="font-size:11px; padding:4px;">
-                <button class="btn-success btn-small" onclick="window.replyTicket('${t.id}', true)">Odpovědět</button>
-            </div>`;
-
-            html += `</div></div>`;
-        });
-        container.innerHTML = html;
-    }
 
     window.addEventListener('load', () => {
         setTimeout(() => {
@@ -1490,7 +1213,6 @@
     window.adminLogin = () => { 
         if (state.pId === ADMIN_UID) {
             document.getElementById("adminPanel").style.display = "block";
-            renderAdminTickets();
         } else {
             alert("Nemáš administrátorská oprávnění.");
         }
