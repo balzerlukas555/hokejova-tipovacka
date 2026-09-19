@@ -1,369 +1,209 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
 (() => {
-  const storageKey = 'hokejova_tipovacka_tickets_v1';
+    const firebaseConfig = {
+        apiKey: "AIzaSyC2xPE4YnIanTiRgrwsoXgoclTyOq0BraE",
+        authDomain: "tipovacka-fce0e.firebaseapp.com",
+        databaseURL: "https://tipovacka-fce0e-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "tipovacka-fce0e"
+    };
 
-  function readTickets() {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      return raw ? JSON.parse(raw) : [];
-    } catch (error) {
-      return [];
+    const app = initializeApp(firebaseConfig, "ticketSystem");
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+    let currentUid = null;
+    let matches = {};
+    let player = {};
+
+    const odds = {
+        result: { "1": 2, "0": 2, "2": 2, "1X": 1.6, "12": 1.4, "X2": 1.6 },
+        score: 4,
+        goals: { "V 2.5": 1.3, "V 4.5": 1.6, "V 6.5": 2, "M 2.5": 2, "M 4.5": 1.6, "M 6.5": 1.3 },
+        scorer: 3
+    };
+
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char]));
+    const activeMatch = (match) => match && match.status === "Plánováno" && match.closed !== true;
+    const finishedMatch = (match) => match && (match.status === "Dohráno" || match.status === "Konec");
+
+    function getTicketList() {
+        return Object.entries(player.tickets || {}).map(([id, ticket]) => ({ id, ...ticket }));
     }
-  }
 
-  function writeTickets(tickets) {
-    localStorage.setItem(storageKey, JSON.stringify(tickets));
-  }
+    function setTicket(id, ticket) {
+        return update(ref(db, `tips/${currentUid}/tickets/${id}`), ticket);
+    }
 
-  function safeText(value) {
-    return (value || '').replace(/\s+/g, ' ').trim();
-  }
+    function getOdds(type, pick) {
+        if (type === "result" || type === "goals") return odds[type][pick] || 0;
+        if (type === "score" || type === "scorer") return odds[type];
+        return 0;
+    }
 
-  function getVisibleMatches() {
-    const shown = [...document.querySelectorAll('.match')];
-    return shown.map((match) => {
-      const teamsEl = match.querySelector('.teams');
-      const matchName = teamsEl ? safeText(teamsEl.textContent) : 'Zápas';
-      return {
-        id: match.dataset.matchId || matchName + '-' + String(Math.random()).slice(2, 8),
-        name: matchName,
-        odds: 1.8 + Math.random() * 1.8
-      };
-    }).slice(0, 3);
-  }
+    function availableMatches() {
+        return Object.entries(matches).filter(([, match]) => activeMatch(match));
+    }
 
-  function ensureStyles() {
-    if (document.getElementById('ticket-system-styles')) return;
+    function renderControls() {
+        const appUi = document.getElementById("appUI");
+        const wallet = appUi?.querySelector(".wallet-card");
+        if (!appUi || !wallet || document.getElementById("ticketControls")) return;
+        const controls = document.createElement("div");
+        controls.id = "ticketControls";
+        controls.style.cssText = "display:flex;gap:8px;max-width:500px;margin:15px auto;flex-wrap:wrap;justify-content:center;";
+        controls.innerHTML = `
+            <button type="button" onclick="window.openTicketCreator()" style="flex:1;min-width:145px;">Založit tiket</button>
+            <button type="button" class="btn-alt" onclick="window.showTicketList('active')" style="flex:1;min-width:145px;">Aktivní tikety</button>
+            <button type="button" class="btn-alt" onclick="window.showTicketList('history')" style="flex:1;min-width:145px;">Historie tiketů</button>`;
+        wallet.insertAdjacentElement("afterend", controls);
+    }
 
-    const style = document.createElement('style');
-    style.id = 'ticket-system-styles';
-    style.textContent = `
-      #ticketControls {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        margin: 20px auto;
-        max-width: 420px;
-        flex-wrap: wrap;
-      }
-      .ticket-btn {
-        background: #1e293b;
-        color: #fff;
-        border: 1px solid #3b82f6;
-        border-radius: 10px;
-        padding: 10px 12px;
-        cursor: pointer;
-        font-weight: 700;
-        font-size: 12px;
-        min-width: 120px;
-      }
-      .ticket-btn.primary {
-        background: #3b82f6;
-      }
-      .ticket-modal {
-        position: fixed;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0,0,0,0.85);
-        z-index: 20000;
-        padding: 16px;
-      }
-      .ticket-modal.open {
-        display: flex;
-      }
-      .ticket-panel {
-        background: #0f172a;
-        border: 1px solid #3b82f6;
-        border-radius: 14px;
-        width: min(520px, 100%);
-        max-height: 80vh;
-        overflow: auto;
-        padding: 18px;
-        box-sizing: border-box;
-      }
-      .ticket-panel h3 {
-        margin: 0 0 12px;
-        color: #3b82f6;
-      }
-      .ticket-item {
-        background: #1e293b;
-        border: 1px solid #334155;
-        border-radius: 10px;
-        padding: 10px;
-        margin-bottom: 10px;
-      }
-      .ticket-item label {
-        display: block;
-        font-size: 12px;
-        color: #94a3b8;
-        margin-bottom: 6px;
-      }
-      .ticket-row {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px;
-        align-items: center;
-      }
-      .ticket-choice {
-        width: 100%;
-        margin: 4px 0;
-        background: #0f172a;
-        color: white;
-        border: 1px solid #334155;
-        padding: 8px;
-        border-radius: 8px;
-      }
-      .ticket-stake {
-        width: 100%;
-        margin-top: 8px;
-      }
-      .ticket-actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 14px;
-      }
-      .ticket-actions button {
-        flex: 1;
-        padding: 10px 12px;
-        border: 0;
-        border-radius: 8px;
-        cursor: pointer;
-        color: white;
-        font-weight: 700;
-      }
-      .ticket-actions .save { background: #059669; }
-      .ticket-actions .cancel { background: #475569; }
-      .ticket-list-item {
-        background: #1e293b;
-        border: 1px solid #334155;
-        border-radius: 10px;
-        padding: 12px;
-        margin-bottom: 10px;
-      }
-      .ticket-meta {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        font-size: 12px;
-        color: #94a3b8;
-        margin-bottom: 8px;
-      }
-      .ticket-badge {
-        display: inline-block;
-        font-size: 10px;
-        padding: 4px 7px;
-        border-radius: 999px;
-        font-weight: 700;
-        background: #0f172a;
-      }
-      .ticket-badge.active { background: #0ea5e9; color: white; }
-      .ticket-badge.cashout { background: #d97706; color: white; }
-      .ticket-badge.history { background: #475569; color: white; }
-      .ticket-cashout {
-        background: #d97706;
-        border: 0;
-        color: white;
-        width: 100%;
-        padding: 8px;
-        border-radius: 8px;
-        margin-top: 8px;
-        cursor: pointer;
-        font-weight: 700;
-      }
-      @media (max-width: 560px) {
-        .ticket-row {
-          grid-template-columns: 1fr;
+    function openModal(title, body) {
+        let overlay = document.getElementById("ticketModalOverlay");
+        if (!overlay) {
+            overlay = document.createElement("div");
+            overlay.id = "ticketModalOverlay";
+            overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:20000;display:none;align-items:center;justify-content:center;padding:10px;box-sizing:border-box;";
+            document.body.appendChild(overlay);
         }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  function createModal(title, bodyHtml, footerHtml = '') {
-    let modal = document.getElementById('ticketModalRoot');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'ticketModalRoot';
-      modal.className = 'ticket-modal';
-      modal.innerHTML = '<div class="ticket-panel"></div>';
-      document.body.appendChild(modal);
+        overlay.innerHTML = `<div class="auth-box" style="max-width:600px;width:95%;max-height:90vh;overflow-y:auto;"><h3 style="color:#3b82f6;margin:0 0 15px 0;">${title}</h3>${body}</div>`;
+        overlay.style.display = "flex";
+        return overlay;
     }
 
-    const panel = modal.querySelector('.ticket-panel');
-    panel.innerHTML = `
-      <h3>${title}</h3>
-      ${bodyHtml}
-      ${footerHtml ? `<div class="ticket-actions">${footerHtml}</div>` : ''}
-    `;
-
-    return modal;
-  }
-
-  function openModal(modal) {
-    modal.classList.add('open');
-  }
-
-  function closeModal(modal) {
-    modal.classList.remove('open');
-  }
-
-  function renderTicketForm() {
-    const matches = getVisibleMatches();
-
-    const body = matches.length
-      ? matches.map((match, index) => `
-        <div class="ticket-item">
-          <label>${index + 1}. ${match.name}</label>
-          <div class="ticket-row">
-            <select class="ticket-choice" data-match-id="${match.id}">
-              <option value="1">1</option>
-              <option value="X">X</option>
-              <option value="2">2</option>
-            </select>
-            <span style="color:#fbbf24; font-weight:700;">${match.odds.toFixed(2)}</span>
-          </div>
-        </div>
-      `).join('')
-      : '<p style="color:#94a3b8;">Žádné aktivní zápasy nejsou k dispozici.</p>';
-
-    const modal = createModal(
-      'Založit tiket',
-      `
-        ${body}
-        <div class="ticket-item">
-          <label>Vklad (TC)</label>
-          <input id="newTicketStake" class="ticket-choice ticket-stake" type="number" min="1" value="20" placeholder="Vklad">
-        </div>
-      `,
-      '<button class="save" type="button" id="saveTicketBtn">Uložit</button><button class="cancel" type="button" id="closeTicketBtn">Zavřít</button>'
-    );
-
-    const saveBtn = document.getElementById('saveTicketBtn');
-    const closeBtn = document.getElementById('closeTicketBtn');
-
-    saveBtn.addEventListener('click', () => {
-      const tickets = readTickets();
-      const stake = Number(document.getElementById('newTicketStake')?.value || 0);
-      const selections = [...document.querySelectorAll('.ticket-choice[data-match-id]')].map((select) => ({
-        matchId: select.dataset.matchId,
-        matchName: select.closest('.ticket-item')?.querySelector('label')?.textContent?.replace(/^\d+\.\s*/, '') || 'Zápas',
-        pick: select.value
-      }));
-
-      if (!selections.length || !stake || stake <= 0) {
-        alert('Zadej vklad a alespoň jeden výběr.');
-        return;
-      }
-
-      tickets.push({
-        id: 'T' + Date.now(),
-        createdAt: new Date().toISOString(),
-        status: 'active',
-        stake,
-        selections,
-        payout: (stake * 1.95).toFixed(2),
-        note: 'Aktivní tiket'
-      });
-
-      writeTickets(tickets);
-      closeModal(modal);
-      alert('Tiket byl vytvořen.');
-    });
-
-    closeBtn.addEventListener('click', () => closeModal(modal));
-    openModal(modal);
-  }
-
-  function renderTickets(type) {
-    const tickets = readTickets().filter((ticket) => {
-      if (type === 'active') return ticket.status === 'active';
-      if (type === 'history') return ticket.status !== 'active';
-      return true;
-    }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    if (!tickets.length) {
-      const modal = createModal(type === 'active' ? 'Aktivní tikety' : 'Historie tiketů', '<p style="color:#94a3b8;">Žádné tikety.</p>', '<button class="cancel" type="button" id="closeTicketListBtn">Zavřít</button>');
-      const closeBtn = document.getElementById('closeTicketListBtn');
-      closeBtn.addEventListener('click', () => closeModal(modal));
-      openModal(modal);
-      return;
+    function closeModal() {
+        const overlay = document.getElementById("ticketModalOverlay");
+        if (overlay) overlay.style.display = "none";
     }
 
-    const body = tickets.map((ticket) => {
-      const badgeClass = type === 'active' ? 'active' : 'history';
-      const picks = ticket.selections.map((sel) => `${sel.matchName}: ${sel.pick}`).join(' • ');
-      const cashoutButton = ticket.status === 'active'
-        ? `<button class="ticket-cashout" data-cashout-id="${ticket.id}">Vybrat cashout (95 %)</button>`
-        : '';
+    window.openTicketCreator = () => {
+        if (!currentUid) return alert("Nejdřív se přihlas.");
+        const active = getTicketList().filter((ticket) => ticket.status === "active");
+        if (active.length >= 3) return alert("Můžeš mít maximálně 3 aktivní tikety.");
+        const openMatches = availableMatches();
+        if (!openMatches.length) return alert("Momentálně není otevřený žádný zápas.");
 
-      return `
-        <div class="ticket-list-item">
-          <div class="ticket-meta">
-            <span>${new Date(ticket.createdAt).toLocaleString('cs-CZ')}</span>
-            <span class="ticket-badge ${badgeClass}">${ticket.status === 'active' ? 'Aktivní' : 'Historie'}</span>
-          </div>
-          <div style="font-size:13px; color:#fff; margin-bottom:8px;">${picks}</div>
-          <div style="font-size:12px; color:#94a3b8;">Vklad: ${ticket.stake} TC • Výhra: ${ticket.payout} TC</div>
-          ${cashoutButton}
-        </div>
-      `;
-    }).join('');
+        const rows = openMatches.map(([id, match]) => `
+            <div style="background:rgba(255,255,255,.05);padding:8px;border-radius:8px;margin-bottom:8px;">
+                <b>${escapeHtml(match.home)} - ${escapeHtml(match.away)}</b>
+                <select data-ticket-match="${id}" style="margin-top:8px;">
+                    <option value="">-- Nevsázet na tento zápas --</option>
+                    <option value="result:1">Výsledek 1 (2x)</option><option value="result:0">Výsledek 0 (2x)</option><option value="result:2">Výsledek 2 (2x)</option>
+                    <option value="result:1X">Výsledek 1X (1.6x)</option><option value="result:12">Výsledek 12 (1.4x)</option><option value="result:X2">Výsledek X2 (1.6x)</option>
+                    <option value="score">Přesné skóre (4x)</option>
+                    <option value="goals:V 2.5">Góly V 2.5 (1.3x)</option><option value="goals:V 4.5">Góly V 4.5 (1.6x)</option><option value="goals:V 6.5">Góly V 6.5 (2x)</option>
+                    <option value="goals:M 2.5">Góly M 2.5 (2x)</option><option value="goals:M 4.5">Góly M 4.5 (1.6x)</option><option value="goals:M 6.5">Góly M 6.5 (1.3x)</option>
+                    <option value="scorer">Střelec (3x)</option>
+                </select>
+                <input data-ticket-value="${id}" placeholder="Hodnota tipu (např. 3:2 nebo jméno střelce)" style="display:none;margin-top:5px;">
+            </div>`).join("");
 
-    const modal = createModal(type === 'active' ? 'Aktivní tikety' : 'Historie tiketů', body, '<button class="cancel" type="button" id="closeTicketListBtn">Zavřít</button>');
-    const closeBtn = document.getElementById('closeTicketListBtn');
-    closeBtn.addEventListener('click', () => closeModal(modal));
+        const overlay = openModal("Založit tiket", `${rows}<input id="ticketStake" type="number" min="1" placeholder="Vklad (TC)"><div id="ticketTotalOdds" style="color:#6ee7b7;font-weight:bold;margin:10px 0;">Výsledný kurz: 1x</div><div style="display:flex;gap:8px;"><button type="button" class="btn-success" onclick="window.saveTicket()" style="flex:2;">Potvrdit tiket</button><button type="button" class="btn-alt" onclick="window.closeTicketModal()" style="flex:1;">Zavřít</button></div>`);
 
-    modal.querySelectorAll('[data-cashout-id]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const ticketId = button.dataset.cashoutId;
-        const ticketsNow = readTickets();
-        const next = ticketsNow.map((ticket) => {
-          if (ticket.id !== ticketId) return ticket;
-          const cashoutValue = Number(ticket.stake) * 0.95;
-          return { ...ticket, status: 'cashout', note: `Vyplaceno ${cashoutValue.toFixed(2)} TC`, payout: cashoutValue.toFixed(2) };
+        overlay.querySelectorAll("select[data-ticket-match]").forEach((select) => {
+            select.addEventListener("change", () => {
+                const input = overlay.querySelector(`input[data-ticket-value="${select.dataset.ticketMatch}"]`);
+                input.style.display = select.value ? "block" : "none";
+                if (select.value !== "score" && select.value !== "scorer") input.value = select.value.split(":")[1] || "";
+                updateTicketOdds(overlay);
+            });
         });
-        writeTickets(next);
-        closeModal(modal);
-        renderTickets('active');
-      });
+    };
+
+    function updateTicketOdds(overlay) {
+        let total = 1;
+        overlay.querySelectorAll("select[data-ticket-match]").forEach((select) => {
+            if (!select.value) return;
+            const [type, pick] = select.value.split(":");
+            total *= getOdds(type, pick);
+        });
+        const output = overlay.querySelector("#ticketTotalOdds");
+        if (output) output.innerText = `Výsledný kurz: ${total.toFixed(2)}x | Možná výhra: ${((Number(overlay.querySelector("#ticketStake")?.value) || 0) * total).toFixed(2)} TC`;
+    }
+
+    window.saveTicket = async () => {
+        if (!currentUid) return;
+        const overlay = document.getElementById("ticketModalOverlay");
+        const stake = Number(overlay.querySelector("#ticketStake").value);
+        const selections = [];
+        let totalOdds = 1;
+        overlay.querySelectorAll("select[data-ticket-match]").forEach((select) => {
+            if (!select.value) return;
+            const [type, pick] = select.value.split(":");
+            const valueInput = overlay.querySelector(`input[data-ticket-value="${select.dataset.ticketMatch}"]`);
+            const value = type === "score" || type === "scorer" ? valueInput.value.trim() : pick;
+            if (!value) return;
+            const match = matches[select.dataset.ticketMatch];
+            const odd = getOdds(type, type === "score" || type === "scorer" ? null : pick);
+            totalOdds *= odd;
+            selections.push({ matchId: select.dataset.ticketMatch, type, pick: value, odd, home: match.home, away: match.away });
+        });
+        const currentBalance = Number(player.balance || 0);
+        if (!selections.length || !stake || stake <= 0) return alert("Vyber alespoň jeden zápas a zadej platný vklad.");
+        if (stake > currentBalance) return alert(`Nedostatek TC! Máš ${currentBalance}.`);
+        const activeTickets = getTicketList().filter((ticket) => ticket.status === "active");
+        if (activeTickets.length >= 3) return alert("Můžeš mít maximálně 3 aktivní tikety.");
+        const ticketId = `t${Date.now()}`;
+        await update(ref(db, `tips/${currentUid}`), { balance: currentBalance - stake, [`tickets/${ticketId}`]: { status: "active", createdAt: Date.now(), stake, totalOdds, possibleWin: Math.floor(stake * totalOdds), selections } });
+        closeModal();
+    };
+
+    window.showTicketList = (type) => {
+        const wanted = getTicketList().filter((ticket) => type === "active" ? ticket.status === "active" : ticket.status !== "active");
+        const html = wanted.length ? wanted.map((ticket) => `<div style="background:rgba(255,255,255,.05);padding:10px;border-radius:8px;margin-bottom:8px;"><b>${ticket.status === "active" ? "Aktivní" : "Dokončený tiket"}</b><br>Vklad: ${ticket.stake} TC | Kurz: ${Number(ticket.totalOdds).toFixed(2)}x | Možná výhra: ${ticket.possibleWin} TC<br>${ticket.selections.map((s) => `${escapeHtml(s.home)}-${escapeHtml(s.away)}: ${escapeHtml(s.type === "score" || s.type === "scorer" ? s.pick : s.pick)} (${s.odd}x)`).join("<br>")}${ticket.status === "active" ? `<button class="btn-gold" style="width:100%;margin-top:8px;" onclick="window.cashoutTicket('${ticket.id}')">Cashout (95 %)</button>` : ""}</div>`).join("") : "<p style='color:#94a3b8'>Žádné tikety.</p>";
+        openModal(type === "active" ? "Aktivní tikety" : "Historie tiketů", `${html}<button type="button" class="btn-alt" style="width:100%;" onclick="window.closeTicketModal()">Zavřít</button>`);
+    };
+
+    window.cashoutTicket = async (ticketId) => {
+        const ticket = player.tickets?.[ticketId];
+        if (!ticket || ticket.status !== "active") return;
+        if (!confirm("Vrátit 95 % vkladu?")) return;
+        const refund = Math.floor(Number(ticket.stake) * 0.95);
+        await update(ref(db, `tips/${currentUid}`), { balance: Number(player.balance || 0) + refund, [`tickets/${ticketId}/status`]: "cashout", [`tickets/${ticketId}/cashoutAmount`]: refund, [`tickets/${ticketId}/closedAt`]: Date.now() });
+        closeModal();
+    };
+
+    window.closeTicketModal = closeModal;
+
+    function evaluateTickets() {
+        if (!currentUid) return;
+        getTicketList().filter((ticket) => ticket.status === "active").forEach(async (ticket) => {
+            if (!ticket.selections.every((selection) => finishedMatch(matches[selection.matchId]))) return;
+            let won = true;
+            ticket.selections.forEach((selection) => {
+                const match = matches[selection.matchId];
+                const [home, away] = String(match.scoreFullTime || match.score || "0:0").split(":").map(Number);
+                const result = home > away ? "1" : home < away ? "2" : "0";
+                const goals = home + away;
+                if (selection.type === "result") won = won && (selection.pick === result || (selection.pick === "1X" && ["1", "0"].includes(result)) || (selection.pick === "X2" && ["2", "0"].includes(result)) || (selection.pick === "12" && ["1", "2"].includes(result)));
+                if (selection.type === "score") won = won && selection.pick === `${home}:${away}`;
+                if (selection.type === "goals") won = won && (selection.pick[0] === "V" ? goals > Number(selection.pick.slice(2)) : goals < Number(selection.pick.slice(2)));
+                if (selection.type === "scorer") won = won && (matches[selection.matchId].timeline || []).some((event) => event.type === "goal" && event.scorer === selection.pick);
+            });
+            const payout = won ? Math.floor(Number(ticket.stake) * Number(ticket.totalOdds)) : 0;
+            const balance = Number(player.balance || 0) + payout;
+            await update(ref(db, `tips/${currentUid}`), { balance, [`tickets/${ticket.id}/status`]: won ? "won" : "lost", [`tickets/${ticket.id}/payout`]: payout, [`tickets/${ticket.id}/closedAt`]: Date.now() });
+        });
+    }
+
+    onValue(ref(db, "/"), (snapshot) => {
+        const data = snapshot.val() || {};
+        matches = data.matches || {};
+        player = data.tips?.[currentUid] || {};
+        renderControls();
+        evaluateTickets();
     });
 
-    openModal(modal);
-  }
-
-  function initTicketSystem() {
-    if (document.getElementById('ticketControls')) return;
-
-    const appUI = document.getElementById('appUI');
-    if (!appUI) return;
-
-    ensureStyles();
-
-    const controls = document.createElement('div');
-    controls.id = 'ticketControls';
-    controls.innerHTML = `
-      <button class="ticket-btn primary" type="button" data-ticket-action="create">Založit tiket</button>
-      <button class="ticket-btn" type="button" data-ticket-action="active">Aktivní tikety</button>
-      <button class="ticket-btn" type="button" data-ticket-action="history">Historie tiketů</button>
-    `;
-
-    appUI.appendChild(controls);
-
-    controls.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-ticket-action]');
-      if (!button) return;
-
-      const action = button.dataset.ticketAction;
-      if (action === 'create') renderTicketForm();
-      if (action === 'active') renderTickets('active');
-      if (action === 'history') renderTickets('history');
+    onAuthStateChanged(auth, (user) => {
+        currentUid = user?.uid || null;
+        if (currentUid) {
+            onValue(ref(db, `tips/${currentUid}`), (snapshot) => {
+                player = snapshot.val() || {};
+                renderControls();
+                evaluateTickets();
+            });
+        }
     });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initTicketSystem);
-  } else {
-    initTicketSystem();
-  }
 })();
